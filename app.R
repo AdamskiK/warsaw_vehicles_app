@@ -24,60 +24,40 @@ server <- function(input, output, session) {
   #  return()
   #})
   
-  reData <- eventReactive(input$refresh, {
+  autoInvalidate <- reactiveTimer(5000)
+  
+  reData <- eventReactive(autoInvalidate(), {
   
   get_trams <- GET(call1)
   get_trams_text <- content(get_trams, "text")
   get_trams_json <- fromJSON(get_trams_text, flatten = TRUE)
   trams_data <- get_trams_json$result
   
-  # # outlier_detection_lon <
-  # mean_lon <- mean(trams_data$Lon)
-  # mean_lat <- mean(trams_data$Lat)
-  # trams_data_lon_matrix <- as.matrix(trams_data$Lon)
-  # trams_data_lat_matrix <- as.matrix(trams_data$Lat)
-  # 
-  # # OUTLIER OR NOT
-  # ODLON <- apply(trams_data_lon_matrix,1,function(x, mean=mean_lon, margin=0.05) 
-  #   if(x>mean*(1+margin))
-  #   {1}
-  #   else if(x<mean*(1-margin))
-  #   {1}
-  #   else
-  #   {0})
-  # 
-  # ODLAT <- apply(trams_data_lat_matrix,1,function(x, mean=mean_lat, margin=0.05) 
-  #   if(x>mean*(1+margin))
-  #   {1}
-  #   else if(x<mean*(1-margin))
-  #   {1}
-  #   else
-  #   {0})
-  # 
-  # ODFINAL <- apply(cbind(ODLON, ODLAT), 1, function(x) if(sum(x)>=1){TRUE}else{FALSE})
-  # 
-  # trams_data <- trams_data[!ODFINAL,]
-  # 
-  # rownames(trams_data) <- NULL
+  filtered_data <- trams_data[trams_data$Lat > 52.140083
+                   & trams_data$Lat < 52.346209
+                   & trams_data$Lon > 20.866590
+                   & trams_data$Lon < 21.143558,]
+
+  rownames(filtered_data) <- NULL
   
-  return(trams_data)
+  return(filtered_data)
   }, ignoreNULL = FALSE)
   
-  points <- eventReactive(input$refresh, {
+  points <- eventReactive(autoInvalidate(), {
     cbind(reData()$Lon, reData()$Lat)
   }, ignoreNULL = FALSE)
   
-  labels <- eventReactive(input$refresh, {
+  labels <- eventReactive(autoInvalidate(), {
     reData()$FirstLine
   },ignoreNULL = FALSE)
   
   output$mymap <- renderLeaflet({
     leaflet() %>%
       addTiles() %>%
-      fitBounds("20.866590", "52.140083", "21.143558", "52.346209")
+      fitBounds(20.866590, 52.140083, 21.143558, 52.346209)
   })
   
-  observeEvent(input$refresh, {
+  observeEvent(autoInvalidate(), {
     leafletProxy("mymap") %>%
       clearMarkers() %>%
       addMarkers(data = points(), label = labels())
