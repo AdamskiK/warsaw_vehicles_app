@@ -19,11 +19,12 @@ server <- function(input, output, session) {
   call1 <- paste(base,"?","id=",id,"&","apikey=",apikey, sep="")
   
   # reaload a page if the refresh button gets clicked
-  observeEvent(input$refresh, {
-    session$reload()
-    return()
-  })
+  #observeEvent(input$refresh, {
+  #  session$reload()
+  #  return()
+  #})
   
+  reData <- eventReactive(input$refresh, {
   
   get_trams <- GET(call1)
   get_trams_text <- content(get_trams, "text")
@@ -58,14 +59,15 @@ server <- function(input, output, session) {
   trams_data <- trams_data[!ODFINAL,]
   
   rownames(trams_data) <- NULL
-  
+  return(trams_data)
+  }, ignoreNULL = FALSE)
   
   points <- eventReactive(input$refresh, {
-    cbind(trams_data$Lon, trams_data$Lat)
+    cbind(reData()$Lon, reData()$Lat)
   }, ignoreNULL = FALSE)
   
   labels <- eventReactive(input$refresh, {
-    trams_data$FirstLine
+    reData()$FirstLine
   },ignoreNULL = FALSE)
   
   output$mymap <- renderLeaflet({
