@@ -31,34 +31,35 @@ server <- function(input, output, session) {
   get_trams_json <- fromJSON(get_trams_text, flatten = TRUE)
   trams_data <- get_trams_json$result
   
-  # outlier_detection_lon <
-  mean_lon <- mean(trams_data$Lon)  
-  mean_lat <- mean(trams_data$Lat)
-  trams_data_lon_matrix <- as.matrix(trams_data$Lon)
-  trams_data_lat_matrix <- as.matrix(trams_data$Lat)
+  # # outlier_detection_lon <
+  # mean_lon <- mean(trams_data$Lon)
+  # mean_lat <- mean(trams_data$Lat)
+  # trams_data_lon_matrix <- as.matrix(trams_data$Lon)
+  # trams_data_lat_matrix <- as.matrix(trams_data$Lat)
+  # 
+  # # OUTLIER OR NOT
+  # ODLON <- apply(trams_data_lon_matrix,1,function(x, mean=mean_lon, margin=0.05) 
+  #   if(x>mean*(1+margin))
+  #   {1}
+  #   else if(x<mean*(1-margin))
+  #   {1}
+  #   else
+  #   {0})
+  # 
+  # ODLAT <- apply(trams_data_lat_matrix,1,function(x, mean=mean_lat, margin=0.05) 
+  #   if(x>mean*(1+margin))
+  #   {1}
+  #   else if(x<mean*(1-margin))
+  #   {1}
+  #   else
+  #   {0})
+  # 
+  # ODFINAL <- apply(cbind(ODLON, ODLAT), 1, function(x) if(sum(x)>=1){TRUE}else{FALSE})
+  # 
+  # trams_data <- trams_data[!ODFINAL,]
+  # 
+  # rownames(trams_data) <- NULL
   
-  # OUTLIER OR NOT
-  ODLON <- apply(trams_data_lon_matrix,1,function(x, mean=mean_lon, margin=0.05) 
-    if(x>mean*(1+margin))
-    {1}
-    else if(x<mean*(1-margin))
-    {1}
-    else
-    {0})
-  
-  ODLAT <- apply(trams_data_lat_matrix,1,function(x, mean=mean_lat, margin=0.05) 
-    if(x>mean*(1+margin))
-    {1}
-    else if(x<mean*(1-margin))
-    {1}
-    else
-    {0})
-  
-  ODFINAL <- apply(cbind(ODLON, ODLAT), 1, function(x) if(sum(x)>=1){TRUE}else{FALSE})
-  
-  trams_data <- trams_data[!ODFINAL,]
-  
-  rownames(trams_data) <- NULL
   return(trams_data)
   }, ignoreNULL = FALSE)
   
@@ -73,15 +74,14 @@ server <- function(input, output, session) {
   output$mymap <- renderLeaflet({
     leaflet() %>%
       addTiles() %>%
-      addMarkers(data = points(), label = labels())
+      fitBounds("20.866590", "52.140083", "21.143558", "52.346209")
   })
   
-  #observeEvent(input$refresh, {
-  #  leafletProxy("mymap") %>%
-  #    clearShapes() %>%
-  #    addTiles() %>%
-  #    addMarkers(data = points(), label = labels())
-  #})
+  observeEvent(input$refresh, {
+    leafletProxy("mymap") %>%
+      clearMarkers() %>%
+      addMarkers(data = points(), label = labels())
+  },ignoreNULL = FALSE)
 }
 
 shinyApp(ui, server)
