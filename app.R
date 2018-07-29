@@ -40,7 +40,7 @@ server <- function(input, output, session) {
   
   call1 <- paste(base,"?","id=",id,"&","apikey=",apikey, sep="")
   
-  autoInvalidate <- reactiveTimer(5000)
+  autoInvalidate <- reactiveTimer(10000)
   
   reData <- eventReactive(autoInvalidate(), {
   
@@ -49,27 +49,28 @@ server <- function(input, output, session) {
       get_trams_json <- fromJSON(get_trams_text, flatten = TRUE)
       trams_data <- get_trams_json$result
       
-      filtered_data <- trams_data[trams_data$Lat > 52.140083
-                       & trams_data$Lat < 52.346209
-                       & trams_data$Lon > 20.866590
-                       & trams_data$Lon < 21.143558,]
+      # trams_data <- trams_data[trams_data$Lat > 52.140083
+      #                  & trams_data$Lat < 52.346209
+      #                  & trams_data$Lon > 20.866590
+      #                  & trams_data$Lon < 21.143558,]
+      # 
+      # trams_data$FirstLine <- as.character(as.numeric(filtered_data$FirstLine))
+      # rownames(trams_data) <- NULL
       
-      filtered_data$FirstLine <- as.character(as.numeric(filtered_data$FirstLine))
-      rownames(filtered_data) <- NULL
+      #print(c("1st place trams_data$Lat: ", length(trams_data$Lat)))
       
-      return(filtered_data)
+      return(trams_data)
       }, ignoreNULL = FALSE)
+
   
-  
-  
-  
-  points <- eventReactive(autoInvalidate(), {
-    cbind(print(reData()$Lon), print(reData()$Lat))
-  }, ignoreNULL = FALSE)
-  
-  labels <- eventReactive(autoInvalidate(), {
-    print(reData()$FirstLine)
-  },ignoreNULL = FALSE)
+  # points <- eventReactive(autoInvalidate(), {
+  #   cbind(print(reData()$Lon), print(reData()$Lat))
+  #   #print(c("2nd place points: ", length(reData()$Lon)))
+  # }, ignoreNULL = FALSE)
+  # 
+  # labels <- eventReactive(autoInvalidate(), {
+  #   print(reData()$FirstLine)
+  # },ignoreNULL = FALSE)
   
   output$mymap <- renderLeaflet({
     leaflet() %>%
@@ -80,16 +81,33 @@ server <- function(input, output, session) {
   
   output$cor_bind <- renderText({
     cor_bind <- c("lattitude: ", "\n", input$lat, ", longitude: ", input$long, sep="")
+    #print(c("3rd place filtered_data$Lon: ", length(length(filtered_data$Lon))))
   })
   
   observeEvent(autoInvalidate(), {
     leafletProxy("mymap") %>%
       clearMarkers() %>%
-      addMarkers(data = points(), 
-                 label = labels())
-      # addMarkers(data = points(), 
-      #            #label = print(as.character(reData()$FirstLine)),
-      #            label = reData()$FirstLine)
+      
+    
+      # addMarkers(data = points(),  
+      #            label = labels()) # error appears
+    
+    
+      addMarkers(
+        data = cbind(print(
+          if(is.null(reData()$Lon) == TRUE)
+          {21.0053246}
+          else{reData()$Lon}),
+          if(is.null(reData()$Lat) == TRUE)
+          {52.2046528}
+          else{reData()$Lat}),
+        
+      # even if reactive functions are not used, the error appears
+      label = print(
+        if(is.null(reData()$FirstLine) == TRUE)
+        {"home"}
+        else{reData()$FirstLine})) # error appears
+      # label = reData()$FirstLine) # error appears
   },ignoreNULL = FALSE)
 }
 
