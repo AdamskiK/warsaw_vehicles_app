@@ -2,6 +2,7 @@ library("httr")
 library("jsonlite")
 library("shiny")
 library("leaflet")
+library("dplyr")
 
 ui <- fluidPage(
   navbarPage("Warsaw Tram Finder (WTF)",
@@ -9,11 +10,13 @@ ui <- fluidPage(
                       textOutput("cor_bind"),
                       textOutput("last_ref"),
                       leafletOutput("mymap", width = "auto", height = "560px")
-                      ),
-             absolutePanel(top = 10, right = 10,
-                           selectInput("colors", "Color Scheme", "lines")
+                      )
              ),
-             ),
+
+  absolutePanel(top = 120, right = 40,
+                selectInput("distLineVals", "Subject",
+                            choices = my_new_list )
+  ),
   
   tags$script('
   $(document).ready(function () {
@@ -49,8 +52,6 @@ server <- function(input, output, session) {
   reData <- eventReactive(autoInvalidate(), {
   
       get_trams <- GET(call1)
-      # print(c("before", summary(get_trams$content)["Length"])) # for value of 15 error appears
-      
       get_trams_text <- content(get_trams, "text")
       get_trams_json <- fromJSON(get_trams_text, flatten = TRUE)
       trams_data <- get_trams_json$result
@@ -65,19 +66,39 @@ server <- function(input, output, session) {
         print(c("inside", summary(get_trams$content)["Length"]))
       }
       
-      # print(c("after", summary(get_trams$content)["Length"]))
-      
       trams_data <- trams_data[trams_data$Lat > 52.140083
                        & trams_data$Lat < 52.346209
                        & trams_data$Lon > 20.866590
                        & trams_data$Lon < 21.143558,]
 
       trams_data$FirstLine <- as.character(as.numeric(trams_data$FirstLine))
+      
+      
+      # setting backup for dropdown list
+      backup_data <- trams_data
+      
+      trams_data <- trams_data %>%
+        filter_at(
+          vars(contains("FirstLine")),
+          any_vars(.==input$distLineVals))
+      
+      
       rownames(trams_data) <- NULL
       
       return(trams_data)
       }, ignoreNULL = FALSE)
-
+  
+  
+  # split converts the f (second) argument to factors, if it isn't already one. 
+  # So, if you want the order to be retained, factor the column yourself 
+  # with the desired level.
+  
+  uniq_first_lines <- unique(as.character(sort(as.numeric(backup_data$FirstLine))))
+  sorted_factor <- factor(uniq_first_lines, levels=uniq_first_lines)
+  my_new_list <- split(uniq_first_lines, sorted_factor)
+  
+  
+  # Reactive values
   
   points <- eventReactive(autoInvalidate(), {
     cbind(reData()$Lon, reData()$Lat)
@@ -94,8 +115,9 @@ server <- function(input, output, session) {
   })
   
   output$cor_bind <- renderText({
-    cor_bind <- c("Your lattitude: ", input$lat, "and longitude: ", input$long, sep="")
+    cor_bind <- c("[Your location] lattitude: ", input$lat, "and longitude: ", input$long, sep="")
   })
+  
   output$last_ref <- renderText({
     last_ref <- paste("Last update: ", 
                       strptime(reData()$Time[1], format='%Y-%m-%dT%H:%M:%S'),
