@@ -5,16 +5,28 @@ library("leaflet")
 library("dplyr")
 
 ui <- fluidPage(
+  tags$style(type='text/css', 
+             ".selectize-input { font-size: 20px; line-height: 20px; position: relative; 
+left: 20px; top: 0px; } 
+             .selectize-dropdown { font-size: 15px; line-height: 15px; }
+             .panel-primary { margin: 50px; font-size: 15px; text-align: center; }
+             .custom_text { font-size: 10 px; }" 
+             ),
+  
   navbarPage("Warsaw Tram Finder (WTF)",
              tabPanel("MAP",
-                      textOutput("cor_bind"),
-                      textOutput("last_ref"),
+                      
                       leafletOutput("mymap", width = "auto", height = "560px")
                       )
              ),
 
-  absolutePanel(top = 120, right = 40,
-                selectInput("distLineVals", "Subject",
+  absolutePanel(class = "panel panel-primary", draggable = TRUE, top = 40, left="auto",
+                right = 0, bottom = "auto", width = "350", height = "auto", margin = "10px",
+                
+                div(class="outer", h3("Controls")),
+                h6(textOutput("cor_bind")),
+                h6(textOutput("last_ref")),
+                selectInput("distLineVals", "Choose a tram line:",
                             choices = my_new_list )
   ),
   
@@ -77,25 +89,25 @@ server <- function(input, output, session) {
       # setting backup for dropdown list
       backup_data <- trams_data
       
+      # split converts the f (second) argument to factors, if it isn't already one. 
+      # So, if you want the order to be retained, factor the column yourself 
+      # with the desired level.
+      uniq_first_lines <- c("all", unique(as.character(sort(as.numeric(backup_data$FirstLine)))))
+      sorted_factor <- factor(uniq_first_lines, levels=uniq_first_lines)
+      my_new_list <- split(uniq_first_lines, sorted_factor)
+      
+      if(input$distLineVals != "all") {
       trams_data <- trams_data %>%
         filter_at(
           vars(contains("FirstLine")),
           any_vars(.==input$distLineVals))
-      
+      }
       
       rownames(trams_data) <- NULL
       
       return(trams_data)
       }, ignoreNULL = FALSE)
   
-  
-  # split converts the f (second) argument to factors, if it isn't already one. 
-  # So, if you want the order to be retained, factor the column yourself 
-  # with the desired level.
-  
-  uniq_first_lines <- unique(as.character(sort(as.numeric(backup_data$FirstLine))))
-  sorted_factor <- factor(uniq_first_lines, levels=uniq_first_lines)
-  my_new_list <- split(uniq_first_lines, sorted_factor)
   
   
   # Reactive values
@@ -115,21 +127,32 @@ server <- function(input, output, session) {
   })
   
   output$cor_bind <- renderText({
-    cor_bind <- c("[Your location] lattitude: ", input$lat, "and longitude: ", input$long, sep="")
+    cor_bind <- c("Your lattitude and longitude: ", input$lat, ",", input$long, sep="")
   })
   
   output$last_ref <- renderText({
     last_ref <- paste("Last update: ", 
                       strptime(reData()$Time[1], format='%Y-%m-%dT%H:%M:%S'),
-                      " --> time refresh within 30 seconds")
+                      " (refresh every 30 secs)")
   })
+  
+  
+  home_icon <- iconList(
+    ship = makeIcon("home_icon.png", 25, 25)
+  )
+  
   
   observeEvent(autoInvalidate(), {
     leafletProxy("mymap") %>%
       clearMarkers() %>%
       addMarkers(
         data = points(),
-        label = labels())
+        label = labels()) %>%
+      addMarkers(
+        data = cbind(as.numeric(as.character(input$long)),as.numeric(as.character(input$lat))),
+        label = "Your position",
+        icon = home_icon
+        )
   },ignoreNULL = FALSE)
 }
 
