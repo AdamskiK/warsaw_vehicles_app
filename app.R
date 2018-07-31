@@ -131,9 +131,13 @@ server <- function(input, output, session) {
   })
   
   output$last_ref <- renderText({
+    time1 <- as.POSIXct(reData()$Time[1], format = '%Y-%m-%dT%H:%M:%S')
+    time2  <- as.POSIXct(Sys.time())
+    timeDiff <- round(difftime(time2,time1, units="sec"),0)
+    
     last_ref <- paste("Last update: ", 
                       strptime(reData()$Time[1], format='%Y-%m-%dT%H:%M:%S'),
-                      " (refresh every 30 secs)")
+                      " last rerfesh: ", timeDiff - 35, " sec ago")
   })
   
   
