@@ -1,37 +1,38 @@
+# setwd("C:/Users/Adam/Desktop/Shiny-tram-app")
+
 library("httr")
 library("jsonlite")
 library("shiny")
 library("leaflet")
 library("dplyr")
 
-ui <- fluidPage(
+
+ui <- shinyUI(fluidPage(
   tags$style(type='text/css', 
              ".selectize-input { font-size: 20px; line-height: 20px; text-align: center; 
-text-indent: 0px; } 
+             text-indent: 0px; } 
              .selectize-dropdown { font-size: 15px; line-height: 15px; text-align: center; 
-text-indent: 0px; }
+             text-indent: 0px; }
              .panel-primary { margin: 50px; font-size: 15px; 
-text-indent: 20px; }
+             text-indent: 20px; }
              .custom_text { font-size: 10 px; }" 
-             ),
+  ),
   
   navbarPage("Warsaw Tram Finder (WTF)",
              tabPanel("MAP",
                       
                       leafletOutput("mymap", width = "auto", height = "560px")
-                      )
-             ),
-
+             )
+  ),
+  
   absolutePanel(class = "panel panel-primary", draggable = F, top = 40, left="auto",
                 right = 0, bottom = "auto", width = "350", height = "auto", margin = "0px",
                 
                 div(class="outer", h3("Controls")),
                 h6(textOutput("cor_bind")),
                 h6(textOutput("last_ref")),
-                selectizeInput("distLineVals", "Tram line:",
-                            choices = my_new_list,
-                            width = 100,
-                            selected = "all")
+                selectInput("loc", "Tram line:",choices = dataO, width = 100, selected = "all")
+                # uiOutput("loc")
   ),
   
   tags$script('
@@ -54,26 +55,40 @@ text-indent: 20px; }
               });
               ')
   )
+)
 
-server <- function(input, output, session) {
+
+
+server <- shinyServer(function(input, output) {
   
   # API KEY
   apikey <- "2b5e76a6-5515-4eb8-b173-130a648f210a"
-  
+
   # trams API
   base_tram <- "https://api.um.warszawa.pl/api/action/wsstore_get/"
   id_tram <- "c7238cfe-8b1f-4c38-bb4a-de386db7e776"
-  
+
   # buses API
   base_bus <- "https://api.um.warszawa.pl/api/action/busestrams_get/"
   id_bus <- "f2e5503e-927d-4ad3-9500-4ab9e55deb59"
 
-  
+
   # API CALLS
   call1 <- paste(base_tram,"?","id=",id_tram,"&","apikey=",apikey, sep="")
   call2 <- paste(base_bus,"?","resource_id=",id_bus,"&","apikey=",apikey,"&type=1", sep="")
+
+  autoInvalidate <- reactiveTimer(5000)
   
-  autoInvalidate <- reactiveTimer(10000)
+  # dummy_val <- 0
+  # if(dummy_val == 0)
+  # {
+  #   print(c("dummy value is:", dummy_val))
+  #   fcl <- c("all")
+  #   sorted_factor <- factor(fcl, levels=fcl)
+  #   my_new_list <- split(fcl, sorted_factor)
+  #   dummy_val <- dummy_val + 1
+  # }
+  
   
   reData <- eventReactive(autoInvalidate(), {
   
@@ -97,7 +112,7 @@ server <- function(input, output, session) {
         get_trams_text <- content(get_trams, "text")
         get_trams_json <- fromJSON(get_trams_text, flatten = TRUE)
         trams_data <- get_trams_json$result
-        # print(c("inside", summary(get_trams$content)["Length"]))
+        print(c("inside", summary(get_trams$content)["Length"]))
       }
       
       # the function filters out outliers
@@ -119,63 +134,109 @@ server <- function(input, output, session) {
       backup_tram_data <- trams_data
       backup_bus_data <- buses_data
       
-      # split converts the f (second) argument to factors, if it isn't already one. 
-      # So, if you want the order to be retained, factor the column yourself 
+      
+      
+      
+      # split converts the f (second) argument to factors, if it isn't already one.
+      # So, if you want the order to be retained, factor the column yourself
       # with the desired levels.
       uniq_first_lines <- c("all", unique(as.character(sort(as.numeric(backup_tram_data$FirstLine)))))
       sorted_factor <- factor(uniq_first_lines, levels=uniq_first_lines)
       my_new_list <- split(uniq_first_lines, sorted_factor)
+      # print(c("my_new_list:", my_new_list))
       
-      # filter tram lines
-      if(input$distLineVals != "all") {
-      trams_data <- trams_data %>%
-        filter_at(
-          vars(contains("FirstLine")),
-          any_vars(.==input$distLineVals))
-      }
+      
+      # output$loc <-renderUI({
+      #   selectInput("loc", label = h4("Choose location"),
+      #               choices = my_new_list ,selected = "all"
+      #   )
+      # })
+      
+      # # filter tram lines
+      # if(input$loc != "all") {
+      # trams_data <- trams_data %>%
+      #   filter_at(
+      #     vars(one_of("FirstLine")),
+      #     any_vars(.==input$loc))
+      # }
+
       
       rownames(trams_data) <- NULL
       rownames(buses_data) <- NULL
       
-      two_value_list <- list(trams_data, buses_data)
-      # return(list(trams_data, buses_data))
-      return(list(trams_data=trams_data, buses_data=buses_data))
-      # return(paste("td", trams_data, "bd", buses_data))
+      return(list(trams_data=trams_data, buses_data=buses_data, my_new_list=my_new_list))
       }, ignoreNULL = FALSE)
   
-  dummy_val <- 0
-  if(dummy_val == 0)
-  {
-    fcl <- c("all")
-    sorted_factor <- factor(fcl, levels=fcl)
-    my_new_list <- split(fcl, sorted_factor)
-    dummy_val <- dummy_val + 1
-  }
   
+  dataO <- 0
+  observe({
+    dataO <- reData()$my_new_list
+    # print(dataO)
+  })
+
+
+  
+  # output$results <- renderTable({
+  #   new_df <-
+  #     reData()$my_new_list %>%
+  #     filter(Species == input$speciesInput
+  #     )
+  #   filtered
+  # })
+  
+  
+  # output$Box1 = renderUI(selectInput("sector","select a sector", reData(), list(all= "all", "1" = 1),"all"))
+  
+  # observeEvent(autoInvalidate(), {
+  #   my_new_list <- reData()$my_new_list
+  #   print(my_new_list)
+  # })
   
   ## Reactive values
   
   # data arg - the name of the dataframe returned as 
   # from eventReactive function
   
-  get_points <- function(react_fun) {
-    eventReactive(autoInvalidate(), {
-      cbind(react_fun$Lon, react_fun$Lat)
-    })
-  }
+  # get_points <- function(react_fun) {
+  #   points <- eventReactive(autoInvalidate(), {
+  #     cbind(react_fun$Lon, react_fun$Lat)
+  #   },ignoreNULL = FALSE)
+  #   return(points)
+  # }
+  # 
+  # tram_points <- get_points(reData()$trams_data)
   
+  filtrator <- function(input, data2) {
+    
+  reactive(if(input != "all") {
+    data2 <- data2 %>%
+    filter_at(
+      vars(one_of("FirstLine")),
+      any_vars(.==input))
+    return(data2)
+  })}
+  
+  print(filtrator(input$loc, reData()))
+  
+
+  points <- eventReactive(autoInvalidate(), {
+    cbind(reData()$trams_data$Lon, reData()$trams_data$Lat)
+  },ignoreNULL = FALSE)
+
+  # tram_points <- get_points(reData()$trams_data)
   
   labels <- eventReactive(autoInvalidate(), {
     paste("line: ", reData()$trams_data$FirstLine)
   },ignoreNULL = FALSE)
   
   output$mymap <- renderLeaflet({
-    url_map <- a("OpenStreetMap", href="https://www.openstreetmap.org/copyright")
-    url_my_github <- a("Kamil Adamski", href="https://github.com/AdamskiK")
-    url_contrib <- a("Miasto Stoleczne Warszawa", href="https://api.um.warszawa.pl/")
+    # url_map <- a("OpenStreetMap", href="https://www.openstreetmap.org/copyright")
+    # url_my_github <- a("Kamil Adamski", href="https://github.com/AdamskiK")
+    # url_contrib <- a("Miasto Stoleczne Warszawa", href="https://api.um.warszawa.pl/")
     leaflet() %>%
-      addTiles(attribution = 
-                 paste("© 2018 ",url_map, ", ", url_my_github, ", ", url_contrib, sep="")) %>%
+      addTiles() %>%
+      # addTiles(attribution = 
+      #            paste("© 2018 ",url_map, ", ", url_my_github, ", ", url_contrib, sep="")) %>%
       fitBounds(input$long-0.005, input$lat-0.005, input$long+0.005, input$lat+0.005)
   })
   
@@ -199,11 +260,13 @@ server <- function(input, output, session) {
   )
   
   
+  
   observeEvent(autoInvalidate(), {
+    # print(c("long and lat are: ", input$long, " ", input$lat))
     leafletProxy("mymap") %>%
       clearMarkers() %>%
       addMarkers(
-        data = get_points(reData()$trams_data)(),
+        data = points(),
         label = labels()) %>%
       addMarkers(
         data = cbind(as.numeric(as.character(input$long)),as.numeric(as.character(input$lat))),
@@ -211,6 +274,9 @@ server <- function(input, output, session) {
         icon = home_icon
         )
   },ignoreNULL = FALSE)
-}
+})
 
-shinyApp(ui=ui, server=server)
+
+
+
+shinyApp(ui, server)
