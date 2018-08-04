@@ -31,7 +31,7 @@ ui <- shinyUI(fluidPage(
                 div(class="outer", h3("Controls")),
                 h6(textOutput("cor_bind")),
                 h6(textOutput("last_ref")),
-                selectInput("loc", "Tram line:",choices = dataO, width = 100, selected = "all")
+                selectInput("loc", "Tram line:",choices = output$dataO, width = 100, selected = "all")
                 # uiOutput("loc")
   ),
   
@@ -146,11 +146,11 @@ server <- shinyServer(function(input, output) {
       # print(c("my_new_list:", my_new_list))
       
       
-      # output$loc <-renderUI({
-      #   selectInput("loc", label = h4("Choose location"),
-      #               choices = my_new_list ,selected = "all"
-      #   )
-      # })
+    
+      selectInput("loc", label = h4("Choose location"),
+                  choices = my_new_list ,selected = "all"
+      )
+    
       
       # # filter tram lines
       # if(input$loc != "all") {
@@ -168,56 +168,14 @@ server <- shinyServer(function(input, output) {
       }, ignoreNULL = FALSE)
   
   
-  dataO <- 0
-  observe({
-    dataO <- reData()$my_new_list
-    # print(dataO)
+
+  output$data <- eventReactive(autoInvalidate(), {
+    data <- reData()$my_new_list
+    print(data)
+    return(data)
   })
 
 
-  
-  # output$results <- renderTable({
-  #   new_df <-
-  #     reData()$my_new_list %>%
-  #     filter(Species == input$speciesInput
-  #     )
-  #   filtered
-  # })
-  
-  
-  # output$Box1 = renderUI(selectInput("sector","select a sector", reData(), list(all= "all", "1" = 1),"all"))
-  
-  # observeEvent(autoInvalidate(), {
-  #   my_new_list <- reData()$my_new_list
-  #   print(my_new_list)
-  # })
-  
-  ## Reactive values
-  
-  # data arg - the name of the dataframe returned as 
-  # from eventReactive function
-  
-  # get_points <- function(react_fun) {
-  #   points <- eventReactive(autoInvalidate(), {
-  #     cbind(react_fun$Lon, react_fun$Lat)
-  #   },ignoreNULL = FALSE)
-  #   return(points)
-  # }
-  # 
-  # tram_points <- get_points(reData()$trams_data)
-  
-  filtrator <- function(input, data2) {
-    
-  reactive(if(input != "all") {
-    data2 <- data2 %>%
-    filter_at(
-      vars(one_of("FirstLine")),
-      any_vars(.==input))
-    return(data2)
-  })}
-  
-  print(filtrator(input$loc, reData()))
-  
 
   points <- eventReactive(autoInvalidate(), {
     cbind(reData()$trams_data$Lon, reData()$trams_data$Lat)

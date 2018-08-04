@@ -19,7 +19,7 @@ ui <- shinyUI(fluidPage(
 server <- shinyServer(function(input, output) {
   
   autoInvalidate <- reactiveTimer(5000)
-  s
+  
   reData <- eventReactive(autoInvalidate(), {
     
     # # example data
@@ -51,6 +51,9 @@ server <- shinyServer(function(input, output) {
     sorted_factor <- factor(uniq_first_lines, levels=uniq_first_lines)
     my_new_list <- split(uniq_first_lines, sorted_factor)
     
+    selectInput("loc", label = h4("Choose location"),
+                choices = reData()$my_new_list ,selected = "all"
+    )
     
     # filter data
     if(input$loc != "all") {
@@ -68,9 +71,7 @@ server <- shinyServer(function(input, output) {
   
 
   output$loc <-renderUI({
-    selectInput("loc", label = h4("Choose location"),
-                choices = reData()$my_new_list ,selected = "all"
-    )
+    
   })
   
   
