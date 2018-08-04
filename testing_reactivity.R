@@ -174,47 +174,73 @@ server <- shinyServer(function(input, output) {
   })
   
   
-  points <- reactive({
-    cbind(reData()$trams_data$Lon, reData()$trams_data$Lat)
+  tram_points <- reactive({
+    print("enter points")
+    tram_points <- cbind(reData()$trams_data$Lon, reData()$trams_data$Lat)
+    print("leave tram_points")
+    return(tram_points)
   })
   
-  labels <- reactive({
-    paste("line: ", reData()$trams_data$FirstLine)
+  tram_labels <- reactive({
+    print("enter tram_labels")
+    tram_labels <- paste("line: ", reData()$trams_data$FirstLine)
+    print("leave tram_labels")
+    return(tram_labels)
+  })
+  
+  bus_points <- reactive({
+    print("enter bus_points")
+    bus_points <- cbind(reData()$buses_data$Lon, reData()$buses_data$Lat)
+    print("leave bus_points")
+    return(bus_points)
+  })
+  
+  bus_labels <- reactive({
+    print("enter bus_labels")
+    bus_labels <- paste("line: ", reData()$buses_data$Lines)
+    print("leave bus_labels")
+    return(bus_labels)
   })
   
   
   output$mymap <- renderLeaflet({
+    print("enter leaflet")
     url_map <- a("OpenStreetMap", href="https://www.openstreetmap.org/copyright")
     url_my_github <- a("Kamil Adamski", href="https://github.com/AdamskiK")
     url_contrib <- a("Miasto Stoleczne Warszawa", href="https://api.um.warszawa.pl/")
-    leaflet() %>%
+    leaflet <- leaflet() %>%
       addTiles() %>%
       addTiles(attribution =
                  paste("© 2018 ",url_map, ", ", url_my_github, ", ", url_contrib, sep="")) %>%
       fitBounds(input$long-0.005, input$lat-0.005, input$long+0.005, input$lat+0.005)
+    print("leave leaflet")
+    return(leaflet)
   })
   
-  output$cor_bind <- renderText({
-    cor_bind <- c("Your lattitude and longitude: ", input$lat, ",", input$long, sep="")
-  })
-  
-  
-  # output$last_ref <- renderText({
-  #   if(is.null(reData()$trams_data$Time[1]) == T){
-  #     print(c("last_ref part1: ", reData()$trams_data$Time[1]))
-  #     # do nothing
-  #   }
-  #   else{
-  #     print(c("last_ref part2: ", reData()$trams_data$Time[1]))
-  #     time1 <- as.POSIXct(reData()$trams_data$Time[1], format = '%Y-%m-%dT%H:%M:%S')
-  #     time2  <- as.POSIXct(Sys.time())
-  #     timeDiff <- round(difftime(time2,time1, units="sec"),0)
-  #     
-  #     last_ref <- paste("Last update: ",
-  #                       strptime(reData()$trams_data$Time[1], format='%Y-%m-%dT%H:%M:%S'),
-  #                       " rerfeshed: ", timeDiff, " sec ago")
-  #   }
+  # output$cor_bind <- renderText({
+  #   cor_bind <- c("Your lattitude and longitude: ", input$lat, ",", input$long, sep="")
   # })
+  
+  
+  output$last_ref <- renderText({
+    time_sample <- reData()$trams_data[[5]][1]
+    if(is.null(time_sample) == T){
+      print(c("last_ref part1: ", time_sample))
+      # do nothing
+    }
+    else{
+      print(c("last_ref part2: ", time_sample))
+      time1 <- as.POSIXct(time_sample, format = '%Y-%m-%dT%H:%M:%S')
+      time2  <- as.POSIXct(Sys.time())
+      timeDiff <- round(difftime(time2,time1, units="sec"),0)
+
+      last_ref <- paste("Last update: ",
+                        strptime(time_sample, format='%Y-%m-%dT%H:%M:%S'),
+                        " rerfeshed: ", timeDiff, " sec ago")
+      print("end of last_ref part2")
+      return(last_ref)
+    }
+  })
   
   
   
@@ -225,20 +251,26 @@ server <- shinyServer(function(input, output) {
   
   
   observeEvent(autoInvalidate(), {
-    print(c("points: ", head(points())))
-    print(c("labels: ", head(labels())))
+    print("enter leafletProxy")
+    print(c("points: ", head(tram_points())))
+    print(c("labels: ", head(tram_labels())))
     print(" ")
     leafletProxy("mymap") %>%
       clearMarkers() %>%
       addMarkers(
-        data = points(),
-        label = labels()) %>%
+        data = tram_points(),
+        label = tram_labels()) %>%
+      addMarkers(
+        data = bus_points(),
+        label = bus_labels()) %>%
       addMarkers(
         data = cbind(as.numeric(as.character(input$long)),as.numeric(as.character(input$lat))),
         label = "Your position",
         icon = home_icon
       )
+    print("leave leafletProxy")
   },ignoreNULL = FALSE)
+  
 })
 
 
