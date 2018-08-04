@@ -175,8 +175,8 @@ server <- shinyServer(function(input, output) {
   
   
   tram_points <- reactive({
-    print("enter points")
-    tram_points <- cbind(reData()$trams_data$Lon, reData()$trams_data$Lat)
+    print("enter tram_points")
+    tram_points <- cbind(reData()$trams_data[[3]], reData()$trams_data[[6]])
     print("leave tram_points")
     return(tram_points)
   })
@@ -217,9 +217,9 @@ server <- shinyServer(function(input, output) {
     return(leaflet)
   })
   
-  # output$cor_bind <- renderText({
-  #   cor_bind <- c("Your lattitude and longitude: ", input$lat, ",", input$long, sep="")
-  # })
+  output$cor_bind <- renderText({
+    cor_bind <- c("Your lattitude and longitude: ", input$lat, ",", input$long, sep="")
+  })
   
   
   output$last_ref <- renderText({
@@ -244,12 +244,17 @@ server <- shinyServer(function(input, output) {
   
   
   
+  iconize <- function(icon_file_name, x_size, y_size){
+    icon <- iconList(
+      ship = makeIcon(icon_file_name, x_size, y_size)
+    )
+  }
   
-  home_icon <- iconList(
-    ship = makeIcon("home_icon.png", 25, 25)
-  )
-  
-  
+  home_icon <- iconize("home_icon.png", 25, 25) 
+  tram_icon <- iconize("tram_icon.png", 35, 35)
+  bus_icon <- iconize("bus_icon.png", 35, 35)
+    
+
   observeEvent(autoInvalidate(), {
     print("enter leafletProxy")
     print(c("points: ", head(tram_points())))
@@ -259,10 +264,12 @@ server <- shinyServer(function(input, output) {
       clearMarkers() %>%
       addMarkers(
         data = tram_points(),
-        label = tram_labels()) %>%
+        label = tram_labels(),
+        icon = tram_icon) %>%
       addMarkers(
         data = bus_points(),
-        label = bus_labels()) %>%
+        label = bus_labels(),
+        icon = bus_icon) %>%
       addMarkers(
         data = cbind(as.numeric(as.character(input$long)),as.numeric(as.character(input$lat))),
         label = "Your position",
