@@ -28,43 +28,87 @@ getData <- function(){
   
   
   # API call #1 response
-  get_trams <- GET(call1)
-  get_trams_text <- content(get_trams, "text")
-  get_trams_json <- fromJSON(get_trams_text, flatten = TRUE)
-  trams_data <- get_trams_json$result
-  
-  
-  # API call #2 response
-  get_buses <- GET(call2)
-  get_buses_text <- content(get_buses, "text")
-  get_bueses_json <- fromJSON(get_buses_text, flatten = TRUE)
-  buses_data <- get_bueses_json$result
-  
-  
-  # handling empty response from the API call
-  while(class(trams_data) == "list"){
-    Sys.sleep(1)
+  API_tram_call <- function(){
+    
     get_trams <- GET(call1)
     get_trams_text <- content(get_trams, "text")
     get_trams_json <- fromJSON(get_trams_text, flatten = TRUE)
     trams_data <- get_trams_json$result
+    
   }
   
   
+  # API call #2 response
+  API_bus_call <-  function(){
+    
+    get_buses <- GET(call2)
+    get_buses_text <- content(get_buses, "text")
+    get_bueses_json <- fromJSON(get_buses_text, flatten = TRUE)
+    buses_data <- get_bueses_json$result
+    
+  }
+  
+  # print("### 1 ###")
+  
+  trams_data <- API_tram_call()
+  buses_data <- API_bus_call()
+  
+  # print("### 2 ###")
+  
+  # print(c("start class of tram data: "))
+  # print(class(trams_data))
+  # print(c("end class of tram data: "))
+  
+  # handling empty response from the API call
+  while(class(trams_data) == "list"){
+    
+    print(c("trams_data is:", trams_data))
+    Sys.sleep(1)
+    trams_data <- API_tram_call()
+    print("------> empty trams_data")
+    
+  }
+  
+  # print("### 3 ###")
+  
+  while(class(buses_data) == "list"){
+    
+    Sys.sleep(1)
+    buses_data <- API_bus_call()
+    print("------> empty buses_data")
+    
+  }
+  
+  # print("### 4 ###")
   # the function filters out outliers
   filter_outliers <- function(data) {
-    data <- data[data$Lat > 52.140083
-                 & data$Lat < 52.346209
-                 & data$Lon > 20.866590
-                 & data$Lon < 21.143558,]
+    
+    if(class(data) == "data.frame"){
+      
+      data <- data %>%
+        filter(Lat > 52.140083,
+               Lat < 52.346209,
+               Lon > 20.866590,
+               Lon < 21.143558)
+    }
+    else{
+      # print(c("#2# class of data is: ", class(data)))
+      # print(c("#2# print data: ", data))
+    }
+
+    return(data)
   }
+  
+  # print("### 5 ###")
   
   trams_data <- filter_outliers(trams_data)
   buses_data <- filter_outliers(buses_data)
   
+  # print("### 6 ###")
   
   trams_data$FirstLine <- as.character(as.numeric(trams_data$FirstLine))
   
+  # print("### 7 ###")
   
   # setting a backup for the dropdown list
   backup_tram_data <- trams_data
@@ -78,8 +122,12 @@ getData <- function(){
   sorted_factor <- factor(uniq_first_lines, levels=uniq_first_lines)
   my_new_list <- split(uniq_first_lines, sorted_factor)
   
+  # print("### 8 ###")
+  
   rownames(trams_data) <- NULL
   rownames(buses_data) <- NULL
+  
+  # print("### 9 ###")
   
   return(list("trams_data" = trams_data, "buses_data" = buses_data, "my_new_list" = my_new_list))
 }
@@ -150,9 +198,11 @@ server <- shinyServer(function(input, output) {
   
   reData <- eventReactive(autoInvalidate(), {
     
+    
+    data <- getData()
+    
     if((is.null(input$location_labels) == T)){
       
-      data <- getData()
       trams_data <- data$trams_data
       buses_data <- data$buses_data
       my_new_list <- data$my_new_list
@@ -160,7 +210,6 @@ server <- shinyServer(function(input, output) {
     }
     else if (input$location_labels == "all") {
       
-      data <- getData()
       trams_data <- data$trams_data
       buses_data <- data$buses_data
       my_new_list <- data$my_new_list
@@ -168,7 +217,6 @@ server <- shinyServer(function(input, output) {
     }
     else {
       
-      data <- getData()
       trams_data <- data$trams_data %>% dplyr::filter(FirstLine == input$location_labels)
       buses_data <- data$buses_data
       my_new_list <- data$my_new_list
@@ -188,41 +236,35 @@ server <- shinyServer(function(input, output) {
   
   
   tram_points <- reactive({
-    print("enter tram_points")
-    print(dput(head(reData())))
-    print(c("check if atomic", 
-            is.atomic(reData()[["trams_data"]][[3]]), 
-            is.atomic(reData()[["trams_data"]][[6]])))
-    
-    tram_points <- cbind(reData()[["trams_data"]][[3]], reData()[["trams_data"]][[6]])
-    print("leave tram_points")
+
+    tram_points <- cbind(reData()[["trams_data"]]["Lon"], reData()[["trams_data"]]["Lat"])
+
     return(tram_points)
   })
   
   tram_labels <- reactive({
-    print("enter tram_labels")
+    
     tram_labels <- paste("line: ", reData()[["trams_data"]][[2]])
-    print("leave tram_labels")
+    
     return(tram_labels)
   })
   
-  # bus_points <- reactive({
-  #   print("enter bus_points")
-  #   bus_points <- cbind(reData()$buses_data[[2]], reData()$buses_data[[1]])
-  #   print("leave bus_points")
-  #   return(bus_points)
-  # })
-  # 
-  # bus_labels <- reactive({
-  #   print("enter bus_labels")
-  #   bus_labels <- paste("line: ", reData()$buses_data[[4]])
-  #   print("leave bus_labels")
-  #   return(bus_labels)
-  # })
+  bus_points <- reactive({
+
+    bus_points <- cbind(reData()$buses_data[[2]], reData()$buses_data[[1]])
+
+    return(bus_points)
+  })
+
+  bus_labels <- reactive({
+
+    bus_labels <- paste("line: ", reData()$buses_data[[4]])
+    
+    return(bus_labels)
+  })
   
   
   output$mymap <- renderLeaflet({
-    print("enter leaflet")
     url_map <- a("OpenStreetMap", href="https://www.openstreetmap.org/copyright")
     url_my_github <- a("Kamil Adamski", href="https://github.com/AdamskiK")
     url_contrib <- a("Miasto Stoleczne Warszawa", href="https://api.um.warszawa.pl/")
@@ -231,23 +273,22 @@ server <- shinyServer(function(input, output) {
       addTiles(attribution =
                  paste("(c) 2018 ",url_map, ", ", url_my_github, ", ", url_contrib, sep="")) %>%
       fitBounds(input$long-0.005, input$lat-0.005, input$long+0.005, input$lat+0.005)
-    print("leave leaflet")
     return(leaflet)
   })
   
   output$cor_bind <- renderText({
+
     cor_bind <- c("Your lattitude and longitude: ", input$lat, ",", input$long, sep="")
+
   })
   
   
   output$last_ref <- renderText({
-    time_sample <- reData()$trams_data[[5]][1]
+    time_sample <- reData()[["trams_data"]][[5]][1]
     if(is.null(time_sample) == T){
-      print(c("last_ref part1: ", time_sample))
       # do nothing
     }
     else{
-      print(c("last_ref part2: ", time_sample))
       time1 <- as.POSIXct(time_sample, format = '%Y-%m-%dT%H:%M:%S')
       time2  <- as.POSIXct(Sys.time())
       timeDiff <- round(difftime(time2,time1, units="sec"),0)
@@ -255,7 +296,7 @@ server <- shinyServer(function(input, output) {
       last_ref <- paste("Last update: ",
                         strptime(time_sample, format='%Y-%m-%dT%H:%M:%S'),
                         " rerfeshed: ", timeDiff, " sec ago")
-      print("end of last_ref part2")
+      
       return(last_ref)
     }
   })
@@ -274,36 +315,24 @@ server <- shinyServer(function(input, output) {
   
   
   observeEvent(autoInvalidate(), {
-    print("enter leafletProxy")
-    print("LP 1")
     leafletProxy("mymap") %>%
       clearMarkers() %>%
       addMarkers(
         data = tram_points(),
-        label = tram_labels()) %>%
-        # clusterOptions = markerClusterOptions(iconCreateFunction =
-        #                                         JS("
-        #                                            function(cluster) {
-        #                                            return new L.DivIcon({
-        #                                            html: '<div style=\"background-color:rgba(77,77,77,0.5)\"><span>' + cluster.getChildCount() + '</div><span>',
-        #                                            className: 'marker-cluster',
-        #                                            iconSize : L.icon({iconUrl : 'tram_icon.png', iconSize : [35, 35]})
-        #                                            });
-        #                                            }"))) %>%
-        # icon = tram_icon,
+        label = tram_labels(),
+        # clusterOptions = markerClusterOptions(showCoverageOnHover  = T))
+        icon = tram_icon) %>%
       
-      # addMarkers(
-      #   data = bus_points(),
-      #   label = bus_labels(),
-      #   icon = bus_icon) %>%
+      addMarkers(
+        data = bus_points(),
+        label = bus_labels(),
+        icon = bus_icon) %>%
       addMarkers(
         data = cbind(as.numeric(as.character(input$long)),as.numeric(as.character(input$lat))),
         label = "Your position",
         icon = home_icon
       )
-    print("leave leafletProxy")
   },ignoreNULL = FALSE)
-  
 })
 
 
