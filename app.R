@@ -1,4 +1,4 @@
-setwd("C:/Users/Adam/Desktop/Shiny/warsaw-public-transport")
+# setwd("C:/Users/Adam/Desktop/Shiny/warsaw-public-transport")
 
 library("httr")
 library("jsonlite")
@@ -118,9 +118,23 @@ getData <- function(){
   # split converts the f (second) argument to factors, if it isn't already one.
   # So, if you want the order to be retained, factor the column yourself
   # with the desired levels.
-  uniq_first_lines <- c("all", unique(as.character(sort(as.numeric(backup_tram_data$FirstLine)))))
-  sorted_factor <- factor(uniq_first_lines, levels=uniq_first_lines)
-  my_new_list <- split(uniq_first_lines, sorted_factor)
+  get_labels <- function(data_, numeric_type){
+    
+    if(numeric_type){
+      uniq_first_lines <- c("all", unique(as.character(sort(as.numeric(data_)))))
+    }else{
+      uniq_first_lines <- c("all", unique(as.character(sort(data_))))
+    }
+    
+    sorted_factor <- factor(uniq_first_lines, levels=uniq_first_lines)
+    label_list <- split(uniq_first_lines, sorted_factor)
+    
+    return(label_list)
+  }
+  
+
+  tram_label_list <- get_labels(backup_tram_data$FirstLine, TRUE)
+  bus_label_list <- get_labels(backup_bus_data$Lines, FALSE)
   
   # print("### 8 ###")
   
@@ -129,7 +143,10 @@ getData <- function(){
   
   # print("### 9 ###")
   
-  return(list("trams_data" = trams_data, "buses_data" = buses_data, "my_new_list" = my_new_list))
+  return(list("trams_data" = trams_data,
+              "buses_data" = buses_data,
+              "tram_label_list" = tram_label_list,
+              "bus_label_list" = bus_label_list))
 }
 
 
@@ -155,9 +172,13 @@ ui <- shinyUI(fluidPage(
                 right = 0, bottom = "auto", width = "350", height = "auto", margin = "0px",
                 
                 div(class="outer", h3("Controls")),
+                # selectInput('data', 'Select transport type', c('trams', 'buses')),
+                uiOutput("tram_lines"),
+                uiOutput("test"),
                 h6(textOutput("cor_bind")),
-                h6(textOutput("last_ref")),
-                uiOutput("location_labels")
+                h6(textOutput("last_ref"))
+                
+                
   ),
   
   tags$script('
@@ -186,55 +207,110 @@ ui <- shinyUI(fluidPage(
 
 server <- shinyServer(function(input, output) {
   
+  
   # renderUI - showing the drop-down list
-  output$location_labels <- renderUI({
+  output$tram_lines <- renderUI({
     
-    selectInput("location_labels", label = h4("Choose location"), choices = labelsData() ,selected = "all")
+    selectInput("tram_location_labels", label = h4("Filter tram line"), choices = tramLabels() ,selected = "all")
     
   })
   
+  
+  output$test <- renderUI({
+    
+    selectInput("bus_location_labels", label = h4("Filter bus line"), choices = busLabels() ,selected = "all")
+    
+  })
+  
+  
+  # output$bus_location_labels <- renderUI({
+  # 
+  #   selectInput("bus_location_labels", label = h4("Filter bus lines"), choices = busLabels() ,selected = "all")
+  # 
+  # })
+  
+  
   # time set to refresh every x msec - has to be passed as an argument
   autoInvalidate <- reactiveTimer(10000)
+  
   
   reData <- eventReactive(autoInvalidate(), {
     
     
     data <- getData()
     
-    if((is.null(input$location_labels) == T)){
-      
+    if((is.null(input$tram_location_labels) == T)){
+
       trams_data <- data$trams_data
       buses_data <- data$buses_data
-      my_new_list <- data$my_new_list
+      tram_label_list <- data$tram_label_list
+      bus_label_list <- data$bus_label_list
+
+    }
+    else if (input$tram_location_labels == "all" & input$bus_location_labels == "all") {
+
+      trams_data <- data$trams_data
+      buses_data <- data$buses_data
+      tram_label_list <- data$tram_label_list
+      bus_label_list <- data$bus_label_list
+
+    }
+    else if (input$tram_location_labels == "all" & input$bus_location_labels != "all") {
+      
+      trams_data <- data$trams_data
+      buses_data <- data$buses_data %>% dplyr::filter(Lines == input$bus_location_labels)
+      tram_label_list <- data$tram_label_list
+      bus_label_list <- data$bus_label_list
       
     }
-    else if (input$location_labels == "all") {
+    else if (input$tram_location_labels != "all" & input$bus_location_labels == "all") {
       
-      trams_data <- data$trams_data
+      trams_data <- data$trams_data %>% dplyr::filter(FirstLine == input$tram_location_labels)
       buses_data <- data$buses_data
-      my_new_list <- data$my_new_list
+      tram_label_list <- data$tram_label_list
+      bus_label_list <- data$bus_label_list
       
     }
     else {
-      
-      trams_data <- data$trams_data %>% dplyr::filter(FirstLine == input$location_labels)
-      buses_data <- data$buses_data
-      my_new_list <- data$my_new_list
-      
+
+      trams_data <- data$trams_data %>% dplyr::filter(FirstLine == input$tram_location_labels)
+      buses_data <- data$buses_data %>% dplyr::filter(Lines == input$bus_location_labels)
+      tram_label_list <- data$tram_label_list
+      bus_label_list <- data$bus_label_list
+
     }
     
-
-
-    return(list("trams_data" = trams_data, "buses_data" = buses_data, "my_new_list" = my_new_list))
+    # trams_data <- data$trams_data
+    # buses_data <- data$buses_data
+    # tram_label_list <- data$tram_label_list
+    # bus_label_list <- data$bus_label_list
+    
+    return(list("trams_data" = trams_data,
+                "buses_data" = buses_data,
+                "tram_label_list" = tram_label_list,
+                "bus_label_list" = bus_label_list))
   })
   
-  labelsData <- eventReactive(reactiveTimer(300000), {
+  
+  # get tram labels
+  tramLabels <- eventReactive(reactiveTimer(300000), {
     
-    trams_data <- reData()$my_new_list
+    reData()$tram_label_list
     
   })
   
   
+  # get bus labels
+  busLabels <- eventReactive(reactiveTimer(300000), {
+    
+    print(c("printing bus data: ", reData()$bus_label_list))
+    reData()$bus_label_list
+    # reData()$bus_label_list
+    
+  })
+  
+  
+  # reactive points and labels
   tram_points <- reactive({
 
     tram_points <- cbind(reData()[["trams_data"]]["Lon"], reData()[["trams_data"]]["Lat"])
@@ -242,12 +318,14 @@ server <- shinyServer(function(input, output) {
     return(tram_points)
   })
   
+  
   tram_labels <- reactive({
     
     tram_labels <- paste("line: ", reData()[["trams_data"]][[2]])
     
     return(tram_labels)
   })
+  
   
   bus_points <- reactive({
 
