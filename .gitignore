@@ -4,3 +4,5 @@
 /rsconnect/shinyapps.io/nicr/warsaw-public-transport.dcf
 /.RData
 /.Rhistory
+*.RData
+*.Rhistory
