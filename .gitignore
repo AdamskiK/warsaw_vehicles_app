@@ -1,2 +1,6 @@
 *.pdf
 *.png
+/rsconnect/shinyapps.io/nicr/Shiny-tram-app.dcf
+/rsconnect/shinyapps.io/nicr/warsaw-public-transport.dcf
+/.RData
+/.Rhistory
