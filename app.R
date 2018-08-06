@@ -5,6 +5,7 @@ library("jsonlite")
 library("shiny")
 library("leaflet")
 library("dplyr")
+library("shinydashboard")
 
 getData <- function(){
   
@@ -79,7 +80,7 @@ getData <- function(){
     
   }
   
-  # print("### 4 ###")
+  print("### 4 ###")
   # the function filters out outliers
   filter_outliers <- function(data) {
     
@@ -99,16 +100,16 @@ getData <- function(){
     return(data)
   }
   
-  # print("### 5 ###")
+  print("### 5 ###")
   
   trams_data <- filter_outliers(trams_data)
   buses_data <- filter_outliers(buses_data)
   
-  # print("### 6 ###")
+  print("### 6 ###")
   
   trams_data$FirstLine <- as.character(as.numeric(trams_data$FirstLine))
   
-  # print("### 7 ###")
+  print("### 7 ###")
   
   # setting a backup for the dropdown list
   backup_tram_data <- trams_data
@@ -150,45 +151,24 @@ getData <- function(){
 }
 
 
-ui <- shinyUI(fluidPage(
-  tags$style(type='text/css', 
-             ".selectize-input { font-size: 20px; line-height: 20px; text-align: center; 
-             text-indent: 0px; } 
-             .selectize-dropdown { font-size: 15px; line-height: 15px; text-align: center; 
-             text-indent: 0px; }
-             .panel-primary { margin: 40px; font-size: 15px; 
-             text-indent: 20px; }
-             .custom_text { font-size: 10 px; }" 
-  ),
-  
-  navbarPage("Warsaw Public Transport",
-             tabPanel("MAP",
-                      
-                      leafletOutput("mymap", width = "auto", height = "560px")
-             )
-  ),
-  
-  absolutePanel(class = "panel panel-primary", draggable = F, top = 40, left="auto",
-                right = 0, bottom = "auto", width = "350", height = "auto", margin = "0px",
-                
-                div(class="outer", h3("Controls")),
-                # selectInput('data', 'Select transport type', c('trams', 'buses')),
-                uiOutput("tram_lines"),
-                uiOutput("test"),
-                h6(textOutput("cor_bind")),
-                h6(textOutput("last_ref"))
-                
-                
-  ),
-  
-  tags$script('
+ui <- dashboardPage(
+  dashboardHeader(title  = "Warsaw Public Transport", titleWidth = "270px"),
+  dashboardSidebar(width = "270px", 
+    
+    div(class="outer", h3("Controls")),
+    uiOutput("tram_lines"),
+    uiOutput("test"),
+    h6(textOutput("cor_bind")),
+    h6(textOutput("last_ref")),
+    
+    tags$script('
               $(document).ready(function () {
               navigator.geolocation.getCurrentPosition(onSuccess, onError);
-              
+
               function onError (err) {
               Shiny.onInputChange("geolocation", false);
               }
-              
+
               function onSuccess (position) {
               setTimeout(function () {
               var coords = position.coords;
@@ -200,6 +180,12 @@ ui <- shinyUI(fluidPage(
               }
               });
               ')
+    
+  ),
+  dashboardBody(
+
+  leafletOutput("mymap", width = "auto", height = "560px")
+ 
   )
   )
 
