@@ -63,7 +63,6 @@ getData <- function(){
   # handling empty response from the API call
   while(class(trams_data) == "list"){
     
-    print(c("trams_data is:", trams_data))
     Sys.sleep(1)
     trams_data <- API_tram_call()
     print("------> empty trams_data")
@@ -151,7 +150,8 @@ getData <- function(){
   return(list("trams_data" = trams_data,
               "buses_data" = buses_data,
               "tram_label_list" = tram_label_list,
-              "bus_label_list" = bus_label_list))
+              "bus_label_list" = bus_label_list,
+              "backup_tram_data" = backup_tram_data))
 }
 
 
@@ -248,13 +248,13 @@ server <- shinyServer(function(input, output, session) {
   
   reData <- eventReactive(autoInvalidate(), {
     
-    print(input$tram_location_labels)
-    print(input$tram_location_labels[1])
-    print(c("class of input: ", class(input$tram_location_labels)))
-    print(c("typeof of input: ", typeof(input$tram_location_labels)))
+    # print(input$tram_location_labels)
+    # print(input$tram_location_labels[1])
+    # print(c("class of input: ", class(input$tram_location_labels)))
+    # print(c("typeof of input: ", typeof(input$tram_location_labels)))
     
     data <- getData()
-    
+    backup_tram_data <- data$backup_tram_data
     
     if((is.null(input$tram_location_labels) == T & is.null(input$bus_location_labels) == T)){
       
@@ -267,7 +267,7 @@ server <- shinyServer(function(input, output, session) {
     }else if(is.null(input$tram_location_labels) == T & is.null(input$bus_location_labels) == F){
       
       print("enter 2")
-      trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% c("33"))
+      trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% c("9"))
       print(trams_data)
       buses_data <- data$buses_data %>% dplyr::filter(Lines %in% input$bus_location_labels)
       tram_label_list <- data$tram_label_list
@@ -277,7 +277,7 @@ server <- shinyServer(function(input, output, session) {
       
       print("enter 3")
       trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% input$tram_location_labels)
-      print(trams_data)
+      # print(trams_data)
       buses_data <- data$buses_data %>% dplyr::filter(Lines %in% c("174"))
       tram_label_list <- data$tram_label_list
       bus_label_list <- data$bus_label_list
@@ -300,7 +300,8 @@ server <- shinyServer(function(input, output, session) {
     return(list("trams_data" = trams_data,
                 "buses_data" = buses_data,
                 "tram_label_list" = tram_label_list,
-                "bus_label_list" = bus_label_list))
+                "bus_label_list" = bus_label_list,
+                "backup_tram_data" = backup_tram_data))
   })
   
   
@@ -323,10 +324,18 @@ server <- shinyServer(function(input, output, session) {
   
   
   # reactive points and labels
+  # tram_points <- reactive({
+  # 
+  #   tram_points <- cbind(reData()[["trams_data"]]["Lon"], reData()[["trams_data"]]["Lat"])
+  # 
+  #   return(tram_points)
+  # })
+  
   tram_points <- reactive({
-
+    
     tram_points <- cbind(reData()[["trams_data"]]["Lon"], reData()[["trams_data"]]["Lat"])
-
+    # print(tram_points)
+    
     return(tram_points)
   })
   
@@ -341,7 +350,8 @@ server <- shinyServer(function(input, output, session) {
   
   bus_points <- reactive({
 
-    bus_points <- cbind(reData()$buses_data[[2]], reData()$buses_data[[1]])
+    bus_points <- cbind(reData()[["buses_data"]]["Lon"], reData()[["buses_data"]]["Lat"])
+    # bus_points <- cbind(reData()$buses_data[[2]], reData()$buses_data[[1]]) #this line causes an error
 
     return(bus_points)
   })
@@ -375,13 +385,18 @@ server <- shinyServer(function(input, output, session) {
   
   
   output$last_ref <- renderText({
-    time_sample <- reData()[["trams_data"]][[5]][1]
+    # time_sample <- reData()[["trams_data"]][[5]][1]
+    # time_sample <- reData()[["trams_data"]][["Time"]][1]
+    time_sample <- reData()$backup_tram_data$Time[1]
     if(is.null(time_sample) == T){
       # do nothing
+      print("time sample is null")
     }
     else{
       time1 <- as.POSIXct(time_sample, format = '%Y-%m-%dT%H:%M:%S')
       time2  <- as.POSIXct(Sys.time())
+      if(is.null(time1) == T){print(c("time 1 is null, needs some debugging"))}
+      
       timeDiff <- round(difftime(time2,time1, units="sec"),0)
       
       last_ref <- paste("Last update: ",
@@ -408,34 +423,56 @@ server <- shinyServer(function(input, output, session) {
   
   
   
-  icon.ion <- makeAwesomeIcon(icon = 'home', markerColor = 'green')
+  icon.home <- makeAwesomeIcon(icon = 'home', library = "fa", markerColor = "green")
+  icon.tram <- makeAwesomeIcon(icon = 'train', library = "fa", markerColor = "blue")
+  icon.bus <- makeAwesomeIcon(icon = 'bus', library = "fa", markerColor = "red")
   
   
   observeEvent(autoInvalidate(), {
     leafletProxy("mymap") %>%
       clearMarkers() %>%
-      # addAwesomeMarkers(
-      #   lng = c(22, 55, 21.0050303),
-      #   lat = c(23, 54, 52.204478),
-      #   icon = icon.ion
-      # ) %>%
+      addAwesomeMarkers(
+        lng = tram_points()$Lon,
+        lat = tram_points()$Lat,
+        icon = icon.tram,
+        label = tram_labels()
+      ) %>%
   
-      addMarkers(
-        data = tram_points(),
-        label = tram_labels() #,
-        ) %>%
+      clearMarkers() %>%
+      addAwesomeMarkers(
+        lng = bus_points()$Lon,
+        lat = bus_points()$Lat,
+        icon = icon.bus,
+        label = bus_labels()
+      ) %>%
       
-      addMarkers(
-        data = bus_points(),
-        label = bus_labels() #,
-        # icon = bus_icon
-        ) %>%
-      
-      addMarkers(
-        data = cbind(as.numeric(as.character(input$long)),as.numeric(as.character(input$lat))),
-        label = "Your position" #,
-        # icon = home_icon
+      addAwesomeMarkers(
+        lng = ifelse(is.null(input$long) == T, 0, input$long),
+        lat = ifelse(is.null(input$lat) == T, 0, input$lat),
+        icon = icon.home,
+        label = "Your position"
       )
+    
+    
+      # and old markers implementation  
+    
+      # addMarkers(
+      #   data = tram_points(),
+      #   label = tram_labels() #,
+      #   ) %>%
+      
+      # addMarkers(
+      #   data = bus_points(),
+      #   label = bus_labels()
+      #   ) %>%
+      
+      # addMarkers(
+      #   data = cbind(as.numeric(as.character(input$long)),as.numeric(as.character(input$lat))),
+      #   label = "Your position" #,
+      #   # icon = home_icon
+      # )
+      
+    
   },ignoreNULL = FALSE)
 })
 
