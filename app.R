@@ -115,6 +115,7 @@ getData <- function(){
   backup_tram_data <- trams_data
   backup_bus_data <- buses_data
   
+  print("### 8 ###")
   
   # split converts the f (second) argument to factors, if it isn't already one.
   # So, if you want the order to be retained, factor the column yourself
@@ -122,9 +123,11 @@ getData <- function(){
   get_labels <- function(data_, numeric_type){
     
     if(numeric_type){
-      uniq_first_lines <- c("all", unique(as.character(sort(as.numeric(data_)))))
+      # uniq_first_lines <- c("all", unique(as.character(sort(as.numeric(data_)))))
+      uniq_first_lines <- c(unique(as.character(sort(as.numeric(data_)))))
     }else{
-      uniq_first_lines <- c("all", unique(as.character(sort(data_))))
+      # uniq_first_lines <- c("all", unique(as.character(sort(data_))))
+      uniq_first_lines <- c(unique(as.character(sort(data_))))
     }
     
     sorted_factor <- factor(uniq_first_lines, levels=uniq_first_lines)
@@ -133,16 +136,17 @@ getData <- function(){
     return(label_list)
   }
   
+  print("### 9 ###")
 
   tram_label_list <- get_labels(backup_tram_data$FirstLine, TRUE)
   bus_label_list <- get_labels(backup_bus_data$Lines, FALSE)
   
-  # print("### 8 ###")
+  print("### 10 ###")
   
   rownames(trams_data) <- NULL
   rownames(buses_data) <- NULL
   
-  # print("### 9 ###")
+  print("### 11 ###")
   
   return(list("trams_data" = trams_data,
               "buses_data" = buses_data,
@@ -156,10 +160,22 @@ ui <- dashboardPage(
   dashboardSidebar(width = "270px", 
     
     div(class="outer", h3("Controls")),
+    textOutput("tram_location_labels"),
     uiOutput("tram_lines"),
     uiOutput("test"),
     h6(textOutput("cor_bind")),
     h6(textOutput("last_ref")),
+    
+    
+    tags$style(type='text/css', 
+               ".selectize-input { font-size: 20px; line-height: 20px; text-align: center; 
+             text-indent: 0px; } 
+             .selectize-dropdown { font-size: 15px; line-height: 15px; text-align: center; 
+             text-indent: 0px; }
+             .panel-primary { margin: 40px; font-size: 15px; 
+             text-indent: 20px; }
+             .custom_text { font-size: 10 px; }" 
+    ),
     
     tags$script('
               $(document).ready(function () {
@@ -185,28 +201,38 @@ ui <- dashboardPage(
   dashboardBody(
 
   leafletOutput("mymap", width = "auto", height = "560px")
+  
+  
  
   )
   )
 
 
-
-server <- shinyServer(function(input, output) {
+server <- shinyServer(function(input, output, session) {
   
   
   # renderUI - showing the drop-down list
   output$tram_lines <- renderUI({
     
-    selectInput("tram_location_labels", label = h4("Filter tram line"), choices = tramLabels() ,selected = "all")
+    selectInput("tram_location_labels", 
+                label = h4("Filter tram line"), 
+                choices = tramLabels(),
+                selected = "",
+                multiple = T)
     
   })
   
   
   output$test <- renderUI({
     
-    selectInput("bus_location_labels", label = h4("Filter bus line"), choices = busLabels() ,selected = "all")
+    selectInput("bus_location_labels", 
+                label = h4("Filter bus line"), 
+                choices = busLabels(),
+                selected = "",
+                multiple = T)
     
   })
+  
   
   
   # output$bus_location_labels <- renderUI({
@@ -222,48 +248,48 @@ server <- shinyServer(function(input, output) {
   
   reData <- eventReactive(autoInvalidate(), {
     
+    print(input$tram_location_labels)
+    print(input$tram_location_labels[1])
+    print(c("class of input: ", class(input$tram_location_labels)))
+    print(c("typeof of input: ", typeof(input$tram_location_labels)))
     
     data <- getData()
     
-    if((is.null(input$tram_location_labels) == T)){
-
-      trams_data <- data$trams_data
-      buses_data <- data$buses_data
-      tram_label_list <- data$tram_label_list
-      bus_label_list <- data$bus_label_list
-
-    }
-    else if (input$tram_location_labels == "all" & input$bus_location_labels == "all") {
-
-      trams_data <- data$trams_data
-      buses_data <- data$buses_data
-      tram_label_list <- data$tram_label_list
-      bus_label_list <- data$bus_label_list
-
-    }
-    else if (input$tram_location_labels == "all" & input$bus_location_labels != "all") {
+    
+    if((is.null(input$tram_location_labels) == T & is.null(input$bus_location_labels) == T)){
       
-      trams_data <- data$trams_data
-      buses_data <- data$buses_data %>% dplyr::filter(Lines == input$bus_location_labels)
+      print("enter 1")
+      trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% c("33"))
+      buses_data <- data$buses_data %>% dplyr::filter(Lines %in% c("174"))
       tram_label_list <- data$tram_label_list
       bus_label_list <- data$bus_label_list
       
-    }
-    else if (input$tram_location_labels != "all" & input$bus_location_labels == "all") {
+    }else if(is.null(input$tram_location_labels) == T & is.null(input$bus_location_labels) == F){
       
-      trams_data <- data$trams_data %>% dplyr::filter(FirstLine == input$tram_location_labels)
-      buses_data <- data$buses_data
+      print("enter 2")
+      trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% c("33"))
+      print(trams_data)
+      buses_data <- data$buses_data %>% dplyr::filter(Lines %in% input$bus_location_labels)
       tram_label_list <- data$tram_label_list
       bus_label_list <- data$bus_label_list
       
-    }
-    else {
-
-      trams_data <- data$trams_data %>% dplyr::filter(FirstLine == input$tram_location_labels)
-      buses_data <- data$buses_data %>% dplyr::filter(Lines == input$bus_location_labels)
+    }else if(is.null(input$tram_location_labels) == F & is.null(input$bus_location_labels) == T){
+      
+      print("enter 3")
+      trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% input$tram_location_labels)
+      print(trams_data)
+      buses_data <- data$buses_data %>% dplyr::filter(Lines %in% c("174"))
       tram_label_list <- data$tram_label_list
       bus_label_list <- data$bus_label_list
-
+      
+    }else{
+      
+      print("enter 4")
+      trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% input$tram_location_labels)
+      buses_data <- data$buses_data %>% dplyr::filter(Lines %in% input$bus_location_labels)
+      tram_label_list <- data$tram_label_list
+      bus_label_list <- data$bus_label_list
+    
     }
     
     # trams_data <- data$trams_data
@@ -289,7 +315,7 @@ server <- shinyServer(function(input, output) {
   # get bus labels
   busLabels <- eventReactive(reactiveTimer(300000), {
     
-    print(c("printing bus data: ", reData()$bus_label_list))
+    # print(c("printing bus data: ", reData()$bus_label_list))
     reData()$bus_label_list
     # reData()$bus_label_list
     
@@ -337,6 +363,7 @@ server <- shinyServer(function(input, output) {
       addTiles(attribution =
                  paste("(c) 2018 ",url_map, ", ", url_my_github, ", ", url_contrib, sep="")) %>%
       fitBounds(input$long-0.005, input$lat-0.005, input$long+0.005, input$lat+0.005)
+    
     return(leaflet)
   })
   
@@ -373,28 +400,41 @@ server <- shinyServer(function(input, output) {
     )
   }
   
-  home_icon <- iconize("home_icon.png", 25, 25) 
-  tram_icon <- iconize("tram_icon.png", 35, 35)
-  bus_icon <- iconize("bus_icon.png", 35, 35)
+  # home_icon <- iconize("https://lh4.googleusercontent.com/d4EwGe0MDUAHmTmGcsoEp63ofvr_IowSwTVeVY65QfaYwHaLNwO9JDUVzsJHH5VoNESmdpT_AAGRt1xMycFb=w1410-h867", 25, 25)
+  home_icon <- iconize("http://globetrotterlife.org/blog/wp-content/uploads/leaflet-maps-marker-icons/danger-24.png", 25, 25)
+  # home_icon <- iconize("www/home_icon_small.png", 25, 25)
+  tram_icon <- iconize("www/tram_icon.png", 35, 35)
+  bus_icon <- iconize("www/bus_icon.png", 35, 35)
+  
+  
+  
+  icon.ion <- makeAwesomeIcon(icon = 'home', markerColor = 'green')
   
   
   observeEvent(autoInvalidate(), {
     leafletProxy("mymap") %>%
       clearMarkers() %>%
+      # addAwesomeMarkers(
+      #   lng = c(22, 55, 21.0050303),
+      #   lat = c(23, 54, 52.204478),
+      #   icon = icon.ion
+      # ) %>%
+  
       addMarkers(
         data = tram_points(),
-        label = tram_labels(),
-        # clusterOptions = markerClusterOptions(showCoverageOnHover  = T))
-        icon = tram_icon) %>%
+        label = tram_labels() #,
+        ) %>%
       
       addMarkers(
         data = bus_points(),
-        label = bus_labels(),
-        icon = bus_icon) %>%
+        label = bus_labels() #,
+        # icon = bus_icon
+        ) %>%
+      
       addMarkers(
         data = cbind(as.numeric(as.character(input$long)),as.numeric(as.character(input$lat))),
-        label = "Your position",
-        icon = home_icon
+        label = "Your position" #,
+        # icon = home_icon
       )
   },ignoreNULL = FALSE)
 })
