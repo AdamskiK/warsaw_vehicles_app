@@ -7,6 +7,26 @@ library("leaflet")
 library("dplyr")
 library("shinydashboard")
 
+convert_polish_letters <- function(name) {
+  
+  
+}
+name <- c("Marszalkowska", "Ciolka", "Laczka")
+
+polish_letters <- c("l", "a")
+
+for(i in 1:length(name)) {
+  
+  if(grepl("l" , name)) {
+    
+    name[i] <- gsub("l", "%C5%84", name)
+    
+    }
+}
+
+
+
+
 getData <- function(){
   
   # API KEY
@@ -23,9 +43,42 @@ getData <- function(){
   id_bus <- "f2e5503e-927d-4ad3-9500-4ab9e55deb59"
   
   
+  # bus time table
+  bus_time_table <- "https://api.um.warszawa.pl/api/action/dbtimetable_get"
+  id_bus_time_table <- "e923fa0e-d96c-43f9-ae6e-60518c9f3238"
+  busstopId = "7009"
+  busstopNr = "01"
+  line = "174"
+  
+  # example
+  # https://api.um.warszawa.pl/api/action/dbtimetable_get/?id=e923fa0e-d96c-43f9-ae6e-60518c9f3238&busstopId=7009&busstopNr=01&line=523&apikey=2b5e76a6-5515-4eb8-b173-130a648f210a
+  
+  
+  # bus stop value
+  bus_stop_value <- "https://api.um.warszawa.pl/api/action/dbtimetable_get"
+  id_bus_stop_value <- "b27f4c17-5c50-4a5b-89dd-236b282bc499"
+  name = "Madalinskiego"
+  
+  # example
+  # https://api.um.warszawa.pl/api/action/dbtimetable_get/?id=b27f4c17-5c50-4a5b-89dd-236b282bc499&name=Madali%C5%84skiego&apikey=2b5e76a6-5515-4eb8-b173-130a648f210a
+  
+  
   # API CALLS
-  call1 <- paste(base_tram,"?","id=",id_tram,"&","apikey=",apikey, sep="")
-  call2 <- paste(base_bus,"?","resource_id=",id_bus,"&","apikey=",apikey,"&type=1", sep="")
+  call1 <- paste0(base_tram,"?","id=",id_tram,"&","apikey=",apikey)
+  
+  call2 <- paste0(base_bus,"?","resource_id=",id_bus,"&","apikey=",apikey,"&type=1")
+  
+  call3 <- paste0(bus_stop_value,"/?id=", id_bus_stop_value,
+                  "&name=", name,
+                  "&apikey=", apikey)
+  
+  call4 <- paste0(bus_time_table,"/?id=", id_bus_time_table,
+                  "&busstopId=", busstopId,
+                  "&busstopNr=", busstopNr,
+                  "&line=", line,
+                  "&apikey=", apikey)
+  
+  
   
   
   # API call #1 response
@@ -48,6 +101,27 @@ getData <- function(){
     buses_data <- get_bueses_json$result
     
   }
+  
+  # API call #3 response
+  API_bus_call <-  function(){
+    
+    get_bus_stop_value <- GET(call3)
+    get_bus_stop_value_text <- content(get_bus_stop_value, "text")
+    get_bus_stop_value_json <- fromJSON(get_bus_stop_value_text, flatten = TRUE)
+    bus_stop_values <- get_bus_stop_value_json$result
+    
+  }
+  
+  # API call #4 response
+  API_bus_call <-  function(){
+    
+    get_bus_timetable <- GET(call4)
+    get_bus_timetable_text <- content(get_bus_timetable, "text")
+    get_bus_timetable_json <- fromJSON(get_bus_timetable_text, flatten = TRUE)
+    bus_timetables <- get_bus_timetable_json$result
+    
+  }
+  
   
   # print("### 1 ###")
   
