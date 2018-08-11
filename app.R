@@ -10,7 +10,34 @@ library("leaflet")
 library("dplyr")
 library("shinydashboard")
 
+# API KEY
+apikey <- "2b5e76a6-5515-4eb8-b173-130a648f210a"
 
+# API call function
+get_API_response <- function(call){
+  
+  get_response <- GET(call)
+  get_text <- content(get_response, "text")
+  get_json <- fromJSON(get_text, flatten = TRUE)
+  data <- get_json$result
+  
+}
+
+
+handle_empty_response <- function(data, call) {
+  
+  while(class(data) == "list"){
+    
+    Sys.sleep(1)
+    data <- get_API_response(call)
+    print("------> empty trams_data")
+    
+  }
+  return(data)
+}
+
+
+# convert polish letters into coded values
 convert_polish_letters <- function(name) {
 
   old_letters <- c("A","C","E","L","N","Ó","S","Z","Z","a","c","e","l","n","ó","s","z","z")
@@ -27,21 +54,7 @@ convert_polish_letters <- function(name) {
   return(name)
 }
 
-getData <- function(){
-  
-  # API KEY
-  apikey <- "2b5e76a6-5515-4eb8-b173-130a648f210a"
-  
-  
-  # trams API
-  base_tram <- "https://api.um.warszawa.pl/api/action/wsstore_get/"
-  id_tram <- "c7238cfe-8b1f-4c38-bb4a-de386db7e776"
-  
-  
-  # buses API
-  base_bus <- "https://api.um.warszawa.pl/api/action/busestrams_get/"
-  id_bus <- "f2e5503e-927d-4ad3-9500-4ab9e55deb59"
-  
+get_bus_statistics <- function(){
   
   # bus stop value
   id_bus_stop_value <- "b27f4c17-5c50-4a5b-89dd-236b282bc499"
@@ -67,7 +80,7 @@ getData <- function(){
   # busstopNr=01&
   # apikey=2b5e76a6-5515-4eb8-b173-130a648f210a
   
-
+  
   # bus time table
   bus_info_base <- "https://api.um.warszawa.pl/api/action/dbtimetable_get"
   id_bus_time_table <- "e923fa0e-d96c-43f9-ae6e-60518c9f3238"
@@ -82,17 +95,11 @@ getData <- function(){
   # line=523&
   # apikey=2b5e76a6-5515-4eb8-b173-130a648f210a
   
-  
-  # API CALLS
-  call1 <- paste0(base_tram,"?","id=",id_tram,"&","apikey=",apikey)
-  
-  call2 <- paste0(base_bus,"?","resource_id=",id_bus,"&","apikey=",apikey,"&type=1")
-  
   call3 <- paste0(bus_info_base,
                   "/?id=", id_bus_stop_value,
                   "&name=", convert_polish_letters(name__id_bus_stop_value),
                   "&apikey=", apikey)
-
+  
   call4 <- paste0(bus_info_base,
                   "/?id=", id_bus_lines,
                   "&busstopId=", busstopId__id_bus_lines,
@@ -106,53 +113,43 @@ getData <- function(){
                   "&line=", line__id_bus_time_table,
                   "&apikey=", apikey)
   
+  bus_stop_id <- get_API_response(call3)
+  bus_stop_info <- get_API_response(call4)
+  bus_timetable <- get_API_response(call5)
   
-  # API call function
-  get_API_response <- function(call){
-    
-    get_response <- GET(call)
-    get_text <- content(get_response, "text")
-    get_json <- fromJSON(get_text, flatten = TRUE)
-    data <- get_json$result
-    
-  }
   
-  API_tram_call <- get_API_response(call1)
-  API_bus_call <- get_API_response(call2)
-  API_bus_stop_call <- get_API_response(call3)
-  API_bus_stop_info_call <- get_API_response(call4)
-  API_bus_timetable_call <- get_API_response(call5)
+}
 
+getData <- function(){
+  
+  # trams API
+  base_tram <- "https://api.um.warszawa.pl/api/action/wsstore_get/"
+  id_tram <- "c7238cfe-8b1f-4c38-bb4a-de386db7e776"
+  
+  
+  # buses API
+  base_bus <- "https://api.um.warszawa.pl/api/action/busestrams_get/"
+  id_bus <- "f2e5503e-927d-4ad3-9500-4ab9e55deb59"
+  
+  # API CALLS
+  call1 <- paste0(base_tram,"?","id=",id_tram,"&","apikey=",apikey)
+  
+  call2 <- paste0(base_bus,"?","resource_id=",id_bus,"&","apikey=",apikey,"&type=1")
+  
   
   # print("### 1 ###")
   
-  trams_data <- API_tram_call
-  buses_data <- API_bus_call
-  bus_stop <- API_bus_stop_call
-  bus_timetable <- API_bus_timetable_call
+  trams_data <- get_API_response(call1)
+  buses_data <- get_API_response(call2)
+  
   
   # print("### 2 ###")
   
-  # handling empty response from the API call
-  while(class(trams_data) == "list"){
-    
-    Sys.sleep(1)
-    trams_data <- API_tram_call()
-    print("------> empty trams_data")
-    
-  }
+  trams_data <- handle_empty_response(trams_data, call1)
+  buses_data <- handle_empty_response(buses_data, call2)
   
-  # print("### 3 ###")
   
-  while(class(buses_data) == "list"){
-    
-    Sys.sleep(1)
-    buses_data <- API_bus_call()
-    print("------> empty buses_data")
-    
-  }
-  
-  print("### 4 ###")
+  # print("### 4 ###")
   # the function filters out outliers
   filter_outliers <- function(data) {
     
@@ -172,22 +169,22 @@ getData <- function(){
     return(data)
   }
   
-  print("### 5 ###")
+  # print("### 5 ###")
   
   trams_data <- filter_outliers(trams_data)
   buses_data <- filter_outliers(buses_data)
   
-  print("### 6 ###")
+  # print("### 6 ###")
   
   trams_data$FirstLine <- as.character(as.numeric(trams_data$FirstLine))
   
-  print("### 7 ###")
+  # print("### 7 ###")
   
   # setting a backup for the dropdown list
   backup_tram_data <- trams_data
   backup_bus_data <- buses_data
   
-  print("### 8 ###")
+  # print("### 8 ###")
   
   # split converts the f (second) argument to factors, if it isn't already one.
   # So, if you want the order to be retained, factor the column yourself
@@ -208,17 +205,17 @@ getData <- function(){
     return(label_list)
   }
   
-  print("### 9 ###")
+  # print("### 9 ###")
 
-  tram_label_list <- get_labels(backup_tram_data$FirstLine, TRUE)
-  bus_label_list <- get_labels(backup_bus_data$Lines, FALSE)
+  tram_label_list <- get_labels(backup_tram_data[["FirstLine"]], TRUE)
+  bus_label_list <- get_labels(backup_bus_data[["Lines"]], FALSE)
   
-  print("### 10 ###")
+  # print("### 10 ###")
   
   rownames(trams_data) <- NULL
   rownames(buses_data) <- NULL
   
-  print("### 11 ###")
+  # print("### 11 ###")
   
   return(list("trams_data" = trams_data,
               "buses_data" = buses_data,
@@ -318,15 +315,16 @@ server <- shinyServer(function(input, output, session) {
     
     if((is.null(input$tram_location_labels) == T & is.null(input$bus_location_labels) == T)){
       
-      print("enter 1")
+      # print("enter 1")
       trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% c("33"))
       buses_data <- data$buses_data %>% dplyr::filter(Lines %in% c("174"))
       tram_label_list <- data$tram_label_list
       bus_label_list <- data$bus_label_list
+      # print("exit 1")
       
     }else if(is.null(input$tram_location_labels) == T & is.null(input$bus_location_labels) == F){
       
-      print("enter 2")
+      # print("enter 2")
       trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% c("9"))
       print(trams_data)
       buses_data <- data$buses_data %>% dplyr::filter(Lines %in% input$bus_location_labels)
@@ -335,7 +333,7 @@ server <- shinyServer(function(input, output, session) {
       
     }else if(is.null(input$tram_location_labels) == F & is.null(input$bus_location_labels) == T){
       
-      print("enter 3")
+      # print("enter 3")
       trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% input$tram_location_labels)
       buses_data <- data$buses_data %>% dplyr::filter(Lines %in% c("174"))
       tram_label_list <- data$tram_label_list
@@ -343,7 +341,7 @@ server <- shinyServer(function(input, output, session) {
       
     }else{
       
-      print("enter 4")
+      # print("enter 4")
       trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% input$tram_location_labels)
       buses_data <- data$buses_data %>% dplyr::filter(Lines %in% input$bus_location_labels)
       tram_label_list <- data$tram_label_list
@@ -407,18 +405,7 @@ server <- shinyServer(function(input, output, session) {
   })
   
   
-  output$mymap <- renderLeaflet({
-    url_map <- a("OpenStreetMap", href="https://www.openstreetmap.org/copyright")
-    url_my_github <- a("Kamil Adamski", href="https://github.com/AdamskiK")
-    url_contrib <- a("Miasto Stoleczne Warszawa", href="https://api.um.warszawa.pl/")
-    leaflet <- leaflet() %>%
-      addTiles() %>%
-      addTiles(attribution =
-                 paste("(c) 2018 ",url_map, ", ", url_my_github, ", ", url_contrib, sep="")) %>%
-      fitBounds(input$long-0.005, input$lat-0.005, input$long+0.005, input$lat+0.005)
-    
-    return(leaflet)
-  })
+  
   
   output$cor_bind <- renderText({
 
@@ -458,11 +445,37 @@ server <- shinyServer(function(input, output, session) {
     )
   }
   
+  bus_stop_info <-  data.frame(busstopId = "3229", 
+                         busstopNr = "01", 
+                         Lat = 52.202810, 
+                         Lon = 21.010190,
+                         label = "",
+                         markerId = "322901")
   
   icon.home <- makeAwesomeIcon(icon = 'home', library = "fa", markerColor = "green")
   icon.tram <- makeAwesomeIcon(icon = 'train', library = "fa", markerColor = "blue")
   icon.bus <- makeAwesomeIcon(icon = 'bus', library = "fa", markerColor = "red")
+  icon.users <- makeAwesomeIcon(icon = 'users', library = "fa", markerColor = "purple")
   
+  
+  output$mymap <- renderLeaflet({
+    url_map <- a("OpenStreetMap", href="https://www.openstreetmap.org/copyright")
+    url_my_github <- a("Kamil Adamski", href="https://github.com/AdamskiK")
+    url_contrib <- a("Miasto Stoleczne Warszawa", href="https://api.um.warszawa.pl/")
+    leaflet <- leaflet() %>%
+      addTiles() %>%
+      addTiles(attribution =
+                 paste("(c) 2018 ",url_map, ", ", url_my_github, ", ", url_contrib, sep="")) %>%
+      fitBounds(input$long-0.005, input$lat-0.005, input$long+0.005, input$lat+0.005)
+      
+    return(leaflet)
+  })
+  
+  observeEvent(input$mymap_marker_click, { # update the location selectInput on map clicks
+    print("hello")
+    p <- input$mymap_marker_click
+    print(p)
+  })
   
   observeEvent(autoInvalidate(), {
     leafletProxy("mymap") %>%
@@ -487,8 +500,15 @@ server <- shinyServer(function(input, output, session) {
         lat = ifelse(is.null(input$lat) == T, 0, input$lat),
         icon = icon.home,
         label = "Your position"
+      ) %>%
+      
+      addAwesomeMarkers(
+        lng = bus_stop_info$Lon,
+        lat = bus_stop_info$Lat,
+        icon = icon.users,
+        layerId = bus_stop_info$markerId
       )
-
+    
   },ignoreNULL = FALSE)
 })
 
