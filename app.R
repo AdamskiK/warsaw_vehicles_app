@@ -1,5 +1,8 @@
 # setwd("C:/Users/Adam/Desktop/Shiny/warsaw-public-transport")
 
+# set a local language as polish
+Sys.setlocale("LC_CTYPE", "polish")
+
 library("httr")
 library("jsonlite")
 library("shiny")
@@ -7,23 +10,25 @@ library("leaflet")
 library("dplyr")
 library("shinydashboard")
 
+
 convert_polish_letters <- function(name) {
-  
-  
-}
-name <- c("Marszalkowska", "Ciolka", "Laczka")
 
-polish_letters <- c("l", "a")
-
-for(i in 1:length(name)) {
+  old_letters <- c("A","C","E","L","N","Ó","S","Z","Z","a","c","e","l","n","ó","s","z","z")
+  new_letters <- c("%C4%84","%C4%86","%C4%98","%C5%81","%C5%83","%C3%93","%C5%9A","%C5%B9",
+                   "%C5%BB","%C4%85","%C4%87","%C4%99","%C5%82","%C5%84","%C3%B3","%C5%9B",
+                   "%C5%BA","%C5%BC")
   
-  if(grepl("l" , name)) {
+  for(i in 1:length(old_letters)) {
     
-    name[i] <- gsub("l", "%C5%84", name)
+    name <- gsub(old_letters[i], new_letters[i], name)
     
-    }
+  }
+  
+  return(name)
 }
 
+
+# name <- convert_polish_letters("ciolka")
 
 
 
@@ -51,8 +56,26 @@ getData <- function(){
   line = "174"
   
   # example
-  # https://api.um.warszawa.pl/api/action/dbtimetable_get/?id=e923fa0e-d96c-43f9-ae6e-60518c9f3238&busstopId=7009&busstopNr=01&line=523&apikey=2b5e76a6-5515-4eb8-b173-130a648f210a
+  # https://api.um.warszawa.pl/api/action/dbtimetable_get/?
+  # id=e923fa0e-d96c-43f9-ae6e-60518c9f3238&busstopId=7009&
+  # busstopNr=01&
+  # line=523&
+  # apikey=2b5e76a6-5515-4eb8-b173-130a648f210a
   
+  
+  # available lines on the bus stop
+  bus_time_table <- "https://api.um.warszawa.pl/api/action/dbtimetable_get"
+  id_bus_time_table <- "e923fa0e-d96c-43f9-ae6e-60518c9f3238"
+  busstopId = "7009"
+  busstopNr = "01"
+  line = "174"
+  
+  # example
+  # https://api.um.warszawa.pl/api/action/dbtimetable_get/?
+  # id=88cd555f-6f31-43ca-9de4-66c479ad5942&
+  # busstopId=3229&
+  # busstopNr=01&
+  # apikey=2b5e76a6-5515-4eb8-b173-130a648f210a
   
   # bus stop value
   bus_stop_value <- "https://api.um.warszawa.pl/api/action/dbtimetable_get"
@@ -69,10 +92,10 @@ getData <- function(){
   call2 <- paste0(base_bus,"?","resource_id=",id_bus,"&","apikey=",apikey,"&type=1")
   
   call3 <- paste0(bus_stop_value,"/?id=", id_bus_stop_value,
-                  "&name=", name,
+                  "&name=", convert_polish_letters(name),
                   "&apikey=", apikey)
-  
-  call4 <- paste0(bus_time_table,"/?id=", id_bus_time_table,
+
+  call5 <- paste0(bus_time_table,"/?id=", id_bus_time_table,
                   "&busstopId=", busstopId,
                   "&busstopNr=", busstopNr,
                   "&line=", line,
@@ -103,23 +126,24 @@ getData <- function(){
   }
   
   # API call #3 response
-  API_bus_call <-  function(){
-    
+  API_bus_stop_call <-  function(){
+
     get_bus_stop_value <- GET(call3)
     get_bus_stop_value_text <- content(get_bus_stop_value, "text")
     get_bus_stop_value_json <- fromJSON(get_bus_stop_value_text, flatten = TRUE)
     bus_stop_values <- get_bus_stop_value_json$result
-    
+
   }
   
+
   # API call #4 response
-  API_bus_call <-  function(){
-    
-    get_bus_timetable <- GET(call4)
+  API_bus_timetable_call <-  function(){
+
+    get_bus_timetable <- GET(call5)
     get_bus_timetable_text <- content(get_bus_timetable, "text")
     get_bus_timetable_json <- fromJSON(get_bus_timetable_text, flatten = TRUE)
-    bus_timetables <- get_bus_timetable_json$result
-    
+    bus_timetable <- get_bus_timetable_json$result
+
   }
   
   
@@ -127,12 +151,10 @@ getData <- function(){
   
   trams_data <- API_tram_call()
   buses_data <- API_bus_call()
+  bus_stop <- API_bus_stop_call()
+  bus_timetable <- API_bus_timetable_call()
   
   # print("### 2 ###")
-  
-  # print(c("start class of tram data: "))
-  # print(class(trams_data))
-  # print(c("end class of tram data: "))
   
   # handling empty response from the API call
   while(class(trams_data) == "list"){
@@ -308,24 +330,11 @@ server <- shinyServer(function(input, output, session) {
   })
   
   
-  
-  # output$bus_location_labels <- renderUI({
-  # 
-  #   selectInput("bus_location_labels", label = h4("Filter bus lines"), choices = busLabels() ,selected = "all")
-  # 
-  # })
-  
-  
   # time set to refresh every x msec - has to be passed as an argument
   autoInvalidate <- reactiveTimer(10000)
   
   
   reData <- eventReactive(autoInvalidate(), {
-    
-    # print(input$tram_location_labels)
-    # print(input$tram_location_labels[1])
-    # print(c("class of input: ", class(input$tram_location_labels)))
-    # print(c("typeof of input: ", typeof(input$tram_location_labels)))
     
     data <- getData()
     backup_tram_data <- data$backup_tram_data
@@ -351,7 +360,6 @@ server <- shinyServer(function(input, output, session) {
       
       print("enter 3")
       trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% input$tram_location_labels)
-      # print(trams_data)
       buses_data <- data$buses_data %>% dplyr::filter(Lines %in% c("174"))
       tram_label_list <- data$tram_label_list
       bus_label_list <- data$bus_label_list
@@ -365,11 +373,6 @@ server <- shinyServer(function(input, output, session) {
       bus_label_list <- data$bus_label_list
     
     }
-    
-    # trams_data <- data$trams_data
-    # buses_data <- data$buses_data
-    # tram_label_list <- data$tram_label_list
-    # bus_label_list <- data$bus_label_list
     
     return(list("trams_data" = trams_data,
                 "buses_data" = buses_data,
@@ -387,28 +390,17 @@ server <- shinyServer(function(input, output, session) {
   })
   
   
-  # get bus labels
+  # get bus labels every 5 minuts
   busLabels <- eventReactive(reactiveTimer(300000), {
     
-    # print(c("printing bus data: ", reData()$bus_label_list))
     reData()$bus_label_list
-    # reData()$bus_label_list
     
   })
   
   
-  # reactive points and labels
-  # tram_points <- reactive({
-  # 
-  #   tram_points <- cbind(reData()[["trams_data"]]["Lon"], reData()[["trams_data"]]["Lat"])
-  # 
-  #   return(tram_points)
-  # })
-  
   tram_points <- reactive({
     
     tram_points <- cbind(reData()[["trams_data"]]["Lon"], reData()[["trams_data"]]["Lat"])
-    # print(tram_points)
     
     return(tram_points)
   })
@@ -425,11 +417,11 @@ server <- shinyServer(function(input, output, session) {
   bus_points <- reactive({
 
     bus_points <- cbind(reData()[["buses_data"]]["Lon"], reData()[["buses_data"]]["Lat"])
-    # bus_points <- cbind(reData()$buses_data[[2]], reData()$buses_data[[1]]) #this line causes an error
 
     return(bus_points)
   })
 
+  
   bus_labels <- reactive({
 
     bus_labels <- paste("line: ", reData()$buses_data[[4]])
@@ -459,9 +451,9 @@ server <- shinyServer(function(input, output, session) {
   
   
   output$last_ref <- renderText({
-    # time_sample <- reData()[["trams_data"]][[5]][1]
-    # time_sample <- reData()[["trams_data"]][["Time"]][1]
+    
     time_sample <- reData()$backup_tram_data$Time[1]
+    
     if(is.null(time_sample) == T){
       # do nothing
       print("time sample is null")
@@ -489,13 +481,6 @@ server <- shinyServer(function(input, output, session) {
     )
   }
   
-  # home_icon <- iconize("https://lh4.googleusercontent.com/d4EwGe0MDUAHmTmGcsoEp63ofvr_IowSwTVeVY65QfaYwHaLNwO9JDUVzsJHH5VoNESmdpT_AAGRt1xMycFb=w1410-h867", 25, 25)
-  home_icon <- iconize("http://globetrotterlife.org/blog/wp-content/uploads/leaflet-maps-marker-icons/danger-24.png", 25, 25)
-  # home_icon <- iconize("www/home_icon_small.png", 25, 25)
-  tram_icon <- iconize("www/tram_icon.png", 35, 35)
-  bus_icon <- iconize("www/bus_icon.png", 35, 35)
-  
-  
   
   icon.home <- makeAwesomeIcon(icon = 'home', library = "fa", markerColor = "green")
   icon.tram <- makeAwesomeIcon(icon = 'train', library = "fa", markerColor = "blue")
@@ -505,6 +490,7 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(autoInvalidate(), {
     leafletProxy("mymap") %>%
       clearMarkers() %>%
+      
       addAwesomeMarkers(
         lng = tram_points()$Lon,
         lat = tram_points()$Lat,
@@ -512,7 +498,6 @@ server <- shinyServer(function(input, output, session) {
         label = tram_labels()
       ) %>%
   
-      clearMarkers() %>%
       addAwesomeMarkers(
         lng = bus_points()$Lon,
         lat = bus_points()$Lat,
@@ -526,27 +511,7 @@ server <- shinyServer(function(input, output, session) {
         icon = icon.home,
         label = "Your position"
       )
-    
-    
-      # and old markers implementation  
-    
-      # addMarkers(
-      #   data = tram_points(),
-      #   label = tram_labels() #,
-      #   ) %>%
-      
-      # addMarkers(
-      #   data = bus_points(),
-      #   label = bus_labels()
-      #   ) %>%
-      
-      # addMarkers(
-      #   data = cbind(as.numeric(as.character(input$long)),as.numeric(as.character(input$lat))),
-      #   label = "Your position" #,
-      #   # icon = home_icon
-      # )
-      
-    
+
   },ignoreNULL = FALSE)
 })
 
