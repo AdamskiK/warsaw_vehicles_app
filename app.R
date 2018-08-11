@@ -27,11 +27,6 @@ convert_polish_letters <- function(name) {
   return(name)
 }
 
-
-# name <- convert_polish_letters("ciolka")
-
-
-
 getData <- function(){
   
   # API KEY
@@ -48,26 +43,21 @@ getData <- function(){
   id_bus <- "f2e5503e-927d-4ad3-9500-4ab9e55deb59"
   
   
-  # bus time table
-  bus_time_table <- "https://api.um.warszawa.pl/api/action/dbtimetable_get"
-  id_bus_time_table <- "e923fa0e-d96c-43f9-ae6e-60518c9f3238"
-  busstopId = "7009"
-  busstopNr = "01"
-  line = "174"
+  # bus stop value
+  id_bus_stop_value <- "b27f4c17-5c50-4a5b-89dd-236b282bc499"
+  name__id_bus_stop_value = "Madalinskiego"
   
   # example
   # https://api.um.warszawa.pl/api/action/dbtimetable_get/?
-  # id=e923fa0e-d96c-43f9-ae6e-60518c9f3238&busstopId=7009&
-  # busstopNr=01&
-  # line=523&
+  # id=b27f4c17-5c50-4a5b-89dd-236b282bc499&
+  # name=Madali%C5%84skiego&
   # apikey=2b5e76a6-5515-4eb8-b173-130a648f210a
   
   
   # available lines on the bus stop
-  bus_time_table <- "https://api.um.warszawa.pl/api/action/dbtimetable_get"
-  id_bus_time_table <- "e923fa0e-d96c-43f9-ae6e-60518c9f3238"
-  busstopId = "7009"
-  busstopNr = "01"
+  id_bus_lines <- "e923fa0e-d96c-43f9-ae6e-60518c9f3238"
+  busstopId__id_bus_lines = "7009"
+  busstopNr__id_bus_lines = "01"
   line = "174"
   
   # example
@@ -77,13 +67,20 @@ getData <- function(){
   # busstopNr=01&
   # apikey=2b5e76a6-5515-4eb8-b173-130a648f210a
   
-  # bus stop value
-  bus_stop_value <- "https://api.um.warszawa.pl/api/action/dbtimetable_get"
-  id_bus_stop_value <- "b27f4c17-5c50-4a5b-89dd-236b282bc499"
-  name = "Madalinskiego"
+
+  # bus time table
+  bus_info_base <- "https://api.um.warszawa.pl/api/action/dbtimetable_get"
+  id_bus_time_table <- "e923fa0e-d96c-43f9-ae6e-60518c9f3238"
+  busstopId__id_bus_time_table = "7009"
+  busstopNr__id_bus_time_table = "01"
+  line__id_bus_time_table = "174"
   
   # example
-  # https://api.um.warszawa.pl/api/action/dbtimetable_get/?id=b27f4c17-5c50-4a5b-89dd-236b282bc499&name=Madali%C5%84skiego&apikey=2b5e76a6-5515-4eb8-b173-130a648f210a
+  # https://api.um.warszawa.pl/api/action/dbtimetable_get/?
+  # id=e923fa0e-d96c-43f9-ae6e-60518c9f3238&busstopId=7009&
+  # busstopNr=01&
+  # line=523&
+  # apikey=2b5e76a6-5515-4eb8-b173-130a648f210a
   
   
   # API CALLS
@@ -91,68 +88,48 @@ getData <- function(){
   
   call2 <- paste0(base_bus,"?","resource_id=",id_bus,"&","apikey=",apikey,"&type=1")
   
-  call3 <- paste0(bus_stop_value,"/?id=", id_bus_stop_value,
-                  "&name=", convert_polish_letters(name),
+  call3 <- paste0(bus_info_base,
+                  "/?id=", id_bus_stop_value,
+                  "&name=", convert_polish_letters(name__id_bus_stop_value),
                   "&apikey=", apikey)
 
-  call5 <- paste0(bus_time_table,"/?id=", id_bus_time_table,
-                  "&busstopId=", busstopId,
-                  "&busstopNr=", busstopNr,
-                  "&line=", line,
+  call4 <- paste0(bus_info_base,
+                  "/?id=", id_bus_lines,
+                  "&busstopId=", busstopId__id_bus_lines,
+                  "&busstopNr=", busstopNr__id_bus_lines,
+                  "&apikey=", apikey)
+  
+  call5 <- paste0(bus_info_base,
+                  "/?id=", id_bus_time_table,
+                  "&busstopId=", busstopId__id_bus_time_table,
+                  "&busstopNr=", busstopNr__id_bus_time_table,
+                  "&line=", line__id_bus_time_table,
                   "&apikey=", apikey)
   
   
-  
-  
-  # API call #1 response
-  API_tram_call <- function(){
+  # API call function
+  get_API_response <- function(call){
     
-    get_trams <- GET(call1)
-    get_trams_text <- content(get_trams, "text")
-    get_trams_json <- fromJSON(get_trams_text, flatten = TRUE)
-    trams_data <- get_trams_json$result
+    get_response <- GET(call)
+    get_text <- content(get_response, "text")
+    get_json <- fromJSON(get_text, flatten = TRUE)
+    data <- get_json$result
     
   }
   
-  
-  # API call #2 response
-  API_bus_call <-  function(){
-    
-    get_buses <- GET(call2)
-    get_buses_text <- content(get_buses, "text")
-    get_bueses_json <- fromJSON(get_buses_text, flatten = TRUE)
-    buses_data <- get_bueses_json$result
-    
-  }
-  
-  # API call #3 response
-  API_bus_stop_call <-  function(){
+  API_tram_call <- get_API_response(call1)
+  API_bus_call <- get_API_response(call2)
+  API_bus_stop_call <- get_API_response(call3)
+  API_bus_stop_info_call <- get_API_response(call4)
+  API_bus_timetable_call <- get_API_response(call5)
 
-    get_bus_stop_value <- GET(call3)
-    get_bus_stop_value_text <- content(get_bus_stop_value, "text")
-    get_bus_stop_value_json <- fromJSON(get_bus_stop_value_text, flatten = TRUE)
-    bus_stop_values <- get_bus_stop_value_json$result
-
-  }
-  
-
-  # API call #4 response
-  API_bus_timetable_call <-  function(){
-
-    get_bus_timetable <- GET(call5)
-    get_bus_timetable_text <- content(get_bus_timetable, "text")
-    get_bus_timetable_json <- fromJSON(get_bus_timetable_text, flatten = TRUE)
-    bus_timetable <- get_bus_timetable_json$result
-
-  }
-  
   
   # print("### 1 ###")
   
-  trams_data <- API_tram_call()
-  buses_data <- API_bus_call()
-  bus_stop <- API_bus_stop_call()
-  bus_timetable <- API_bus_timetable_call()
+  trams_data <- API_tram_call
+  buses_data <- API_bus_call
+  bus_stop <- API_bus_stop_call
+  bus_timetable <- API_bus_timetable_call
   
   # print("### 2 ###")
   
