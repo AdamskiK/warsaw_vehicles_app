@@ -13,9 +13,9 @@ library("shinydashboard")
 # API KEY
 apikey <- "2b5e76a6-5515-4eb8-b173-130a648f210a"
 
-# bus stop value
+###1### bus stop value
 id_bus_stop_value <- "b27f4c17-5c50-4a5b-89dd-236b282bc499"
-name__id_bus_stop_value = "Madalinskiego"
+
 
 # example
 # https://api.um.warszawa.pl/api/action/dbtimetable_get/?
@@ -24,26 +24,22 @@ name__id_bus_stop_value = "Madalinskiego"
 # apikey=2b5e76a6-5515-4eb8-b173-130a648f210a
 
 
-# available lines on the bus stop
-id_bus_lines <- "e923fa0e-d96c-43f9-ae6e-60518c9f3238"
-busstopId__id_bus_lines = "7009"
-busstopNr__id_bus_lines = "01"
-line = "174"
+###2### available lines at the given bus stop
+id_bus_lines <- "88cd555f-6f31-43ca-9de4-66c479ad5942"
+
 
 # example
-# https://api.um.warszawa.pl/api/action/dbtimetable_get/?
+# "https://api.um.warszawa.pl/api/action/dbtimetable_get?
 # id=88cd555f-6f31-43ca-9de4-66c479ad5942&
 # busstopId=3229&
 # busstopNr=01&
-# apikey=2b5e76a6-5515-4eb8-b173-130a648f210a
+# apikey=2b5e76a6-5515-4eb8-b173-130a648f210a"
 
 
-# bus time table
+###3### bus time table
 bus_info_base <- "https://api.um.warszawa.pl/api/action/dbtimetable_get"
 id_bus_time_table <- "e923fa0e-d96c-43f9-ae6e-60518c9f3238"
-busstopId__id_bus_time_table = "7009"
-busstopNr__id_bus_time_table = "01"
-line__id_bus_time_table = "174"
+
 
 # example
 # https://api.um.warszawa.pl/api/action/dbtimetable_get/?
@@ -94,19 +90,38 @@ convert_polish_letters <- function(name) {
   return(name)
 }
 
-get_bus_statistics <- function(busstopId, busstopNr,line){
+
+get_bus_stop_id <- function(name){
   
+  call3 <- paste0(bus_info_base,
+                  "/?id=", id_bus_stop_value,
+                  "&name=", convert_polish_letters(name),
+                  "&apikey=", apikey)
   
-  # call3 <- paste0(bus_info_base,
-  #                 "/?id=", id_bus_stop_value,
-  #                 "&name=", convert_polish_letters(name__id_bus_stop_value),
-  #                 "&apikey=", apikey)
-  # 
-  # call4 <- paste0(bus_info_base,
-  #                 "/?id=", id_bus_lines,
-  #                 "&busstopId=", busstopId__id_bus_lines,
-  #                 "&busstopNr=", busstopNr__id_bus_lines,
-  #                 "&apikey=", apikey)
+  bus_stop_id <- get_API_response(call3)
+  
+  return(bus_stop_id)
+}
+  
+
+get_bus_stop_lines <- function(busstopId, busstopNr){
+  
+  call4 <- paste0(bus_info_base,
+                  "/?id=", id_bus_lines,
+                  "&busstopId=", busstopId,
+                  "&busstopNr=", busstopNr,
+                  "&apikey=", apikey)
+  
+  bus_timetable <- get_API_response(call4)
+  
+  return(bus_timetable)
+}
+
+# get all the vehicle numbers for a given bus stop
+# sapply(get_bus_stop_lines(get_bus_stop_id("Madalinskiego")[[1]][[1]]$value[1], "01")[1]$values, function(x) x$value)
+
+
+get_bus_timetable <- function(busstopId, busstopNr,line){
   
   call5 <- paste0(bus_info_base,
                   "/?id=", id_bus_time_table,
@@ -115,18 +130,37 @@ get_bus_statistics <- function(busstopId, busstopNr,line){
                   "&line=", line,
                   "&apikey=", apikey)
   
-  # bus_stop_id <- get_API_response(call3)
+
   # bus_stop_info <- get_API_response(call4)
-  bus_timetable <- get_API_response(call5)
+
   
   return(list("bus_timetable" = bus_timetable))
-  # return(list("tram_label_list" = tram_label_list,
-  #             "bus_label_list" = bus_label_list,
-  #             "backup_tram_data" = backup_tram_data))
 }
+
+vehicle_list <- sapply(get_bus_stop_lines(get_bus_stop_id("Madalinskiego")[[1]][[1]]$value[1], "01")[1]$values, function(x) x$value)
+for(i in 1:length(vehicle_list)){
+  if(i == 1){
+    df <- get_bus_statistics("3229", "01", vehicle_list[i])[[1]] %>% mutate(bus = vehicle_list[i])
+  }else{
+    df %>% bind_rows(get_bus_statistics("3229", "01", vehicle_list[i])[[1]] %>% mutate(bus = vehicle_list[i])) ->
+      df
+  }
+}
+
+
+sapply(df$values, function(x) x$value)[6,]
+sapply(lapply(sapply(df$values, function(x) x$value)[6,], function(x) strptime(x, "%H:%M:%S")), function(x) sort(x))
+
+df$bus[sapply(lapply(sapply(df$values, function(x) x$value)[6,], function(x) strptime(x, "%H:%M:%S")), function(x) x > Sys.time()), ]
+
+
+
 
 # sapply(get_bus_statistics("3229", "01", "174")[[1]]$values, function(x) c(x$key, x$value)
        
+# returns a vector with true false (if bigger than Sys.time())
+# sapply(lapply(sapply(get_bus_statistics("3229", "01", "174")[[1]]$values, function(x) x$value)[6,], function(x) strptime(x, "%H:%M:%S")), function(x) x > Sys.time())
+
 getData <- function(){
   
   # trams API
