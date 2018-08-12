@@ -131,35 +131,96 @@ get_bus_timetable <- function(busstopId, busstopNr,line){
                   "&apikey=", apikey)
   
 
-  # bus_stop_info <- get_API_response(call4)
+  bus_timetable <- get_API_response(call5)
 
   
   return(list("bus_timetable" = bus_timetable))
 }
 
-vehicle_list <- sapply(get_bus_stop_lines(get_bus_stop_id("Madalinskiego")[[1]][[1]]$value[1], "01")[1]$values, function(x) x$value)
-for(i in 1:length(vehicle_list)){
-  if(i == 1){
-    df <- get_bus_statistics("3229", "01", vehicle_list[i])[[1]] %>% mutate(bus = vehicle_list[i])
-  }else{
-    df %>% bind_rows(get_bus_statistics("3229", "01", vehicle_list[i])[[1]] %>% mutate(bus = vehicle_list[i])) ->
-      df
+
+return_bus_stop_info <- function(layer_id){
+
+  print("enter return_bus_stop_info")
+  busStopId <-  substr(layer_id, 1, 4)
+  busStopNr <- substr(layer_id, 5, 6)
+
+  print("#1#")
+  # vehicle_list <- sapply(get_bus_stop_lines(get_bus_stop_id("Madalinskiego")[[1]][[1]]$value[1], "01")[1]$values, function(x) x$value)
+  vehicle_list <- sapply(get_bus_stop_lines(busStopId, busStopNr)[1]$values, function(x) x$value)
+  
+  #
+  # busStopId <- "3229"
+  # busStopNr <- "01"
+  
+  print("#2#")
+  for(i in 1:length(vehicle_list)){
+    print("#3#")
+    if(i == 1){
+      print("#4#")
+      df_ <- get_bus_timetable(busStopId, busStopNr, vehicle_list[i])[[1]]
+      print(c("the class of object is: ", class(df_)))
+      df <- df_ %>% mutate(bus = vehicle_list[i])
+    }else{
+      print("#5#")
+      # double brackets because of functions priority
+      df %>% bind_rows((get_bus_timetable(busStopId, busStopNr, vehicle_list[i])[[1]] %>% mutate(bus = vehicle_list[i]))) ->
+        df
+    }
   }
+  
+  print("#6#")
+  
+  df_time <- sapply(df$values, function(x) x$value)[6,]
+  df_bus <- df$bus
+  
+  print("#7#")
+  # let's work with df
+  df_time <- data.frame(do.call(c, lapply(df_time, function(x) as.POSIXct(x, format = "%H:%M:%S"))))
+  df_bus <- df$bus
+  df_final <- cbind(df_bus, ndf)
+  names(df_final) <- c("busNr", "time")
+  df_final <- df_final %>%
+    filter(time > Sys.time()) %>%
+    mutate(time_left = round(time - Sys.time())) %>%
+    group_by(busNr) %>%
+    mutate(rank = dense_rank(c(time))) %>%
+    ungroup() %>%
+    filter(rank <= 2) %>%
+    select(busNr, time_left)
+  
+  # format into data.frame
+  df_final <- data.frame(df_final)
+  
+  print("format into data.frame")
+  
+  
+  # get string output
+  output <- cat(paste(capture.output(print(df_final)), collapse = "\n"))
+  
+  test <- paste("<strong>", capture.output(df_final), "</strong>", "<br/>", sep = "") %>% lapply(htmltools::HTML)
+  
+  # base %>% lapply(htmltools::HTML)
+  
+  
+  # a new way of getting proper print output
+  aa <- apply(df_final[ , c("busNr", "time_left") ] , 1 , paste , collapse = "-" )
+  
+  gdb <- gsub("-", " - ", gsub(" ", "", aa))
+  
+  
+  base <- paste0(gdb[1],"</strong>", "<br/>")
+  for(i in 2:length(gdb)){
+    base <- paste0(base, "<strong>", gdb[i],"</strong>", "<br/>")
+  }
+  base <- paste0("<strong>", base)
+  
+  base <- base %>% lapply(htmltools::HTML)
+  
+  return(base[[1]])
 }
 
 
-sapply(df$values, function(x) x$value)[6,]
-sapply(lapply(sapply(df$values, function(x) x$value)[6,], function(x) strptime(x, "%H:%M:%S")), function(x) sort(x))
 
-df$bus[sapply(lapply(sapply(df$values, function(x) x$value)[6,], function(x) strptime(x, "%H:%M:%S")), function(x) x > Sys.time()), ]
-
-
-
-
-# sapply(get_bus_statistics("3229", "01", "174")[[1]]$values, function(x) c(x$key, x$value)
-       
-# returns a vector with true false (if bigger than Sys.time())
-# sapply(lapply(sapply(get_bus_statistics("3229", "01", "174")[[1]]$values, function(x) x$value)[6,], function(x) strptime(x, "%H:%M:%S")), function(x) x > Sys.time())
 
 getData <- function(){
   
@@ -515,8 +576,16 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$mymap_marker_click, { # update the location selectInput on map clicks
     print("hello")
     p <- input$mymap_marker_click
-    print(p)
+    print(return_bus_stop_info(p$id))
+    print(class(return_bus_stop_info(p$id)))
+    print(p$id)
   })
+  
+  # trigger_bus_info <- eventReactive(input$mymap_marker_click, {
+  #   p <- input$mymap_marker_click
+  #   bus_info <- return_bus_stop_info(p)
+  #   return(bus_info)
+  # })
   
   observeEvent(autoInvalidate(), {
     leafletProxy("mymap") %>%
@@ -547,7 +616,8 @@ server <- shinyServer(function(input, output, session) {
         lng = bus_stop_info$Lon,
         lat = bus_stop_info$Lat,
         icon = icon.users,
-        layerId = bus_stop_info$markerId
+        layerId = bus_stop_info$markerId,
+        popup = return_bus_stop_info(input$mymap_marker_click$id)
       )
     
   },ignoreNULL = FALSE)
