@@ -1,7 +1,12 @@
 library(readtext)
 library(stringi)
+library(dplyr)
 setwd("C:/Users/Adam/Desktop/Shiny/warsaw-public-transport")
 
+# custom function for getting last n characters from a sting
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
 
 # example data for tests
 ex_schedule <- readtext("3229_example_schedule.txt")
@@ -13,45 +18,67 @@ all_busstopids$stopId
 
 # get the raw text data
 bus_schedule_info <- readtext("RA180815.TXT")
-bus_schedule_info
+# bus_schedule_info
+
+# gsub("yyy.yyyyyyyy", "00.000000", bus_schedule_info)
 
 # create an empty df
 extracted_bus_stops <- data.frame()
 
+# set parameter to see the remaining time
+update_every_iter <- 50
+
+time_start <- Sys.time()
+
 #iterate through every busstop id
 for(i in 1:length(all_busstopids$stopId)){
   
-  print(i)
-  # use regexp to extract all
-  get_bus_id_nr <- stri_extract_all(bus_schedule_info$text, regex = paste0(all_busstopids$stopId[i],"\\d\\d"))
-  get_lon <- stri_extract_all(bus_schedule_info$text, regex = "Y=\\s\\d{2}\\.\\d{6}")
-  get_lat <- stri_extract_all(bus_schedule_info$text, regex = "X=\\s\\d{2}\\.\\d{6}")
   
-  print(c(get_bus_id_nr, get_lon, get_lat))
-  df <- data.frame(id_nr = unlist(get_bus_id_nr), lon = substr(unlist(get_lon), 4,12), lat = substr(unlist(get_lat), 4,12))
+  # use regexp to extract all
+  get_bus_id_nr <- stri_extract_all(bus_schedule_info$text, regex = paste0("\\s", all_busstopids$stopId[i],"\\d\\d"))
+  get_lat <- stri_extract_all(bus_schedule_info$text, regex = paste0("\\s", all_busstopids$stopId[i],".*Ul.*(Y=\\s\\d{2}\\.\\d{6}?)"))[[1]]
+  get_lon <- stri_extract_all(bus_schedule_info$text, regex = paste0("\\s", all_busstopids$stopId[i],".*Ul.*(X=\\s\\d{2}\\.\\d{6}?)"))[[1]]
+  processed_lon <- substrRight(get_lon, 9)
+  processed_lat <- substrRight(get_lat, 9)
+  
+  df <- data.frame(id_nr = unlist(get_bus_id_nr), lon = processed_lon, lat = processed_lat)
   extracted_bus_stops <- rbind(extracted_bus_stops, df)
-  break
+  
+
+  if(i %% update_every_iter == 0){
+    all_iter <- length(all_busstopids$stopId)
+    remain_iter <- all_iter - i
+    diff <- difftime(Sys.time(), time_start, units = "secs")
+    time_per_iter <- as.numeric(diff)/i
+    
+    time_left <- remain_iter*time_per_iter
+    cat("time left: ", time_left, " seconds", "\n")
+  }
 }
 
 
+extracted_bus_stops$id_nr <- as.character(extracted_bus_stops$id_nr)
+extracted_bus_stops$lat <- as.character(extracted_bus_stops$lat)
+extracted_bus_stops$lon <- as.character(extracted_bus_stops$lon)
 
-### testing
+extracted_bus_stops %>%
+  filter(lat != "00.000000" | lon != "00.000000") ->
+  extracted_bus_stops
 
-get_bus_id_nr <- stri_extract_all(ex_schedule$text, regex = paste0(3229,"\\d\\d"))
-get_lon <- stri_extract_all(ex_schedule$text, regex = "Y=\\s\\d{2}\\.\\d{6}")
-get_lat <- stri_extract_all(ex_schedule$text, regex = "X=\\s\\d{2}\\.\\d{6}")
-stri_locate_all(ex_schedule$text, regex = "Y=\\s\\d{2}\\.\\d{6}")
-
-stri_locate_all(ex_schedule$text, regex = paste0(3229,"\\d\\d"))
-
-stri_locate_all_boundaries(ex_schedule$text)
+write.csv(extracted_bus_stops, "extracted_bus_stops.csv", row.names = F)
 
 
-substrRight <- function(x, n){
-  substr(x, nchar(x)-n+1, nchar(x))
-}
+# testing
+
+et_bus_id_nr <- stri_extract_all(ex_schedule$text, regex = paste0("\\s", 3229,"\\d\\d"))
+get_lat <- stri_extract_all(ex_schedule$text, regex = paste0("\\s", 3229,".*Ul.*Y=(\\s\\d{2}\\.\\d{6}?)"))[[1]]
+get_lon <- stri_extract_all(ex_schedule$text, regex = paste0("\\s", 3229,".*Ul.*(X=\\s\\d{2}\\.\\d{6}?)"))[[1]]
+processed_lon <- substrRight(get_lon, 9)
+processed_lat <- substrRight(get_lat, 9)
 
 
-str_e <- stri_extract_all(ex_schedule$text, regex = paste0(3229,".*(Y=\\s\\d{2}\\.\\d{6}?)"))[[1]]
-substrRight(str_e, 9)
+stri_extract_all(ex_schedule$text, regex = paste0("\\s", 3229,".*"), simplify = T)[[1]]
+
+
+
 
