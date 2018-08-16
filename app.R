@@ -14,19 +14,44 @@ library("shinydashboard")
 # read bus stop nr and coordinates
 bus_stop_df <- read.csv("extracted_bus_stops.csv")
 bus_stop_df <- bus_stop_df %>% 
-  slice(2000:2300)
+  slice(2000:2500)
 
 
 # read mapped bus lines to bus ids
 bus_line_mapping <- read.csv("mapped_bus_lines.csv", stringsAsFactors = F)
 bus_line_mapping
 
-bus_line_mapping$busline_list <- list()
 for(i in 1:length(bus_line_mapping$busline)){
   bus_line_mapping$busline[i] <- list(gsub(" ", "", as.list(strsplit(bus_line_mapping$busline[[i]], ","))[[1]]))
 }
 
-# aligned_bus_stops <- function(bus_line_list)
+
+aligned_bus_stops <- function(bus_line_vector){
+  
+  if(!is.null(bus_line_vector) == T){
+    
+    df <- data.frame()
+    for(i in 1:length(bus_line_vector)){
+      
+      for(j in 1:length(bus_line_mapping$busline)){
+        
+        if(bus_line_vector[i] %in% bus_line_mapping$busline[[j]]){
+          df <- rbind(df, data.frame(id_nr = bus_line_mapping$id_nr[j],
+                                     lat = bus_line_mapping$lat[j],
+                                     lon = bus_line_mapping$lon[j]))
+        }else{
+          
+        }
+        
+      }
+    }
+    
+  }else{
+    df <- bus_stop_df
+  }
+  
+  return(df)
+}
   
   
   
@@ -40,7 +65,7 @@ apikey <- "2b5e76a6-5515-4eb8-b173-130a648f210a"
 id_bus_stop_value <- "b27f4c17-5c50-4a5b-89dd-236b282bc499"
 
 
-# example
+# debug
 # https://api.um.warszawa.pl/api/action/dbtimetable_get/?
 # id=b27f4c17-5c50-4a5b-89dd-236b282bc499&
 # name=Madali%C5%84skiego&
@@ -51,7 +76,7 @@ id_bus_stop_value <- "b27f4c17-5c50-4a5b-89dd-236b282bc499"
 id_bus_lines <- "88cd555f-6f31-43ca-9de4-66c479ad5942"
 
 
-# example
+# debug
 # "https://api.um.warszawa.pl/api/action/dbtimetable_get?
 # id=88cd555f-6f31-43ca-9de4-66c479ad5942&
 # busstopId=3229&
@@ -64,7 +89,7 @@ bus_info_base <- "https://api.um.warszawa.pl/api/action/dbtimetable_get"
 id_bus_time_table <- "e923fa0e-d96c-43f9-ae6e-60518c9f3238"
 
 
-# example
+# debug
 # https://api.um.warszawa.pl/api/action/dbtimetable_get/?
 # id=e923fa0e-d96c-43f9-ae6e-60518c9f3238&busstopId=7009&
 # busstopNr=01&
@@ -170,15 +195,30 @@ return_bus_stop_info <- function(layer_id){
   # print(c("layer_id is null: ", is.null(layer_id)))
   # debug
   # layer_id <- "322901"
+  print("#0#")
+  print(c("layer id is: ", layer_id))
   
   if(!is.null(layer_id)){
     # print("enter return_bus_stop_info")
+    print(c("layer id is: ", layer_id))
     busStopId <-  substr(layer_id, 1, 4)
     busStopNr <- substr(layer_id, 5, 6)
     
+    print(c(busStopId, busStopNr))
+    
     print("#1#")
+    
+    get_list <- get_bus_stop_lines(busStopId, busStopNr)
+    
+    if(get_list == "BadSqlGrammarException"){
+
+      print("#1a#")
+      base <- "API Error"
+
+    }else{
+      
     # vehicle_list <- sapply(get_bus_stop_lines(get_bus_stop_id("Madalinskiego")[[1]][[1]]$value[1], "01")[1]$values, function(x) x$value)
-    vehicle_list <- sapply(get_bus_stop_lines(busStopId, busStopNr)$values, function(x) x$value)
+    vehicle_list <- sapply(get_list$values, function(x) x$value)
     print("#2#")
     for(i in 1:length(vehicle_list)){
       print("#3#")
@@ -234,12 +274,16 @@ return_bus_stop_info <- function(layer_id){
     base <- base %>% lapply(htmltools::HTML)
     base <- base[[1]]
     print("#14#")
+    
+    }
   }else{
     
     # if the layer_id is empty then return an empty sting 
     base <- ""
     
   }
+  
+  
   print("#15#")
   return(base)
 }
@@ -441,9 +485,9 @@ server <- shinyServer(function(input, output, session) {
     data <- getData()
     backup_tram_data <- data$backup_tram_data
     
-    if((is.null(input$tram_location_labels) == T & is.null(input$bus_location_labels) == T)){
+    if(is.null(input$tram_location_labels) == T & is.null(input$bus_location_labels) == T){
       
-      # print("enter 1")
+      print("enter 1")
       trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% c("33"))
       buses_data <- data$buses_data %>% dplyr::filter(Lines %in% c("174"))
       tram_label_list <- data$tram_label_list
@@ -454,7 +498,6 @@ server <- shinyServer(function(input, output, session) {
       
       # print("enter 2")
       trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% c("9"))
-      print(trams_data)
       buses_data <- data$buses_data %>% dplyr::filter(Lines %in% print(input$bus_location_labels))
       tram_label_list <- data$tram_label_list
       bus_label_list <- data$bus_label_list
@@ -607,7 +650,6 @@ server <- shinyServer(function(input, output, session) {
   
   trigger_bus_info <- eventReactive(input$mymap_marker_click, {
     output <- return_bus_stop_info(input$mymap_marker_click$id)
-    print(output)
     return(output)
   })
 
@@ -645,11 +687,29 @@ server <- shinyServer(function(input, output, session) {
       ) %>%
       
       addAwesomeMarkers(
-        lng = bus_stop_df$lon, # bus_stop_info$Lon,
-        lat = bus_stop_df$lat, # bus_stop_info$Lat,
+        # lng = ifelse(is.null(input$bus_location_labels), 
+        #              bus_stop_df$lon, 
+        #              aligned_bus_stops(input$bus_location_labels)$lon), # bus_stop_info$Lon,
+        # 
+        # lat = ifelse(is.null(input$bus_location_labels),
+        #              bus_stop_df$lat,
+        #              aligned_bus_stops(input$bus_location_labels)$lat), # bus_stop_info$Lat,
+        # 
+        # icon = icon.users,
+        # 
+        # layerId = ifelse(is.null(input$bus_location_labels),
+        #                  bus_stop_df$id_nr,
+        #                  aligned_bus_stops(input$bus_location_labels)$id_nr), # bus_stop_info$markerId,
+        
+        lng = aligned_bus_stops(input$bus_location_labels)$lon,
+        
+        lat = aligned_bus_stops(input$bus_location_labels)$lat,
+        
         icon = icon.users,
-        layerId = bus_stop_df$id_nr, # bus_stop_info$markerId,
-        popup = return_bus_stop_info(print(input$mymap_marker_click$id))
+        
+        layerId = aligned_bus_stops(print(input$bus_location_labels))$id_nr,
+        
+        popup = return_bus_stop_info(input$mymap_marker_click$id)
       )
     
   },ignoreNULL = FALSE)
