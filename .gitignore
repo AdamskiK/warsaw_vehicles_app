@@ -17,3 +17,5 @@
 /mapped_tibble.csv
 /3229_example_from_bus_schedule_ztm.txt
 /bus_mapping.csv
+.Rproj.user
+warsaw-public-transport.Rproj
