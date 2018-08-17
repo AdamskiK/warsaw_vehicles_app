@@ -12,7 +12,7 @@ library("shinydashboard")
 
 
 # read bus stop nr and coordinates
-bus_stop_df_full <- read.csv("2018_08_17_22_09_53_extracted_bus_stops.csv", stringsAsFactors = F)
+bus_stop_df_full <- read.csv("2018_08_17_23_45_08_extracted_bus_stops.csv", stringsAsFactors = F)
 bus_stop_df <- bus_stop_df_full[sample(nrow(bus_stop_df_full), 100), ]
 
 
