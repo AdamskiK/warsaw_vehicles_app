@@ -42,13 +42,20 @@ for(i in 1:length(all_busstopids$stopId)){
   get_bus_id_nr <- stri_extract_all(bus_schedule_info$text, regex = paste0("\\s", all_busstopids$stopId[i],"\\d{2}"))
   get_lat <- stri_extract_all(bus_schedule_info$text, regex = paste0("\\s", all_busstopids$stopId[i],".*Ul.*(Y=\\s\\d{2}\\.\\d{6}?)"))[[1]]
   get_lon <- stri_extract_all(bus_schedule_info$text, regex = paste0("\\s", all_busstopids$stopId[i],".*Ul.*(X=\\s\\d{2}\\.\\d{6}?)"))[[1]]
-  street_name <- stri_extract_all(bus_schedule_info$text, regex = paste0(all_busstopids$stopId[i],"\\d{2}.*?:\\s(.+?),"))[[1]]
+  busstop_name <- stri_extract_all(bus_schedule_info$text, regex = paste0(all_busstopids$stopId[i],"\\d{2}.*?:\\s(.+?),"))[[1]]
 
+  
   processed_lon <- substrRight(get_lon, 9)
   processed_lat <- substrRight(get_lat, 9)
-  processed_street_name <- unlist(stri_extract_all(street_name, regex = "(?<=:\\s).+[^,]"))
+  processed_busstop_name <- unlist(stri_extract_all(busstop_name, regex = "(?<=:\\s).+[^,]"))
   
-  df <- data.frame(id_nr = unlist(get_bus_id_nr), lon = processed_lon, lat = processed_lat, str_name = processed_street_name)
+  
+  df <- data.frame(id_nr = unlist(get_bus_id_nr), 
+                   lon = processed_lon, 
+                   lat = processed_lat, 
+                   busstop_name = processed_busstop_name)
+  
+  
   extracted_bus_stops <- rbind(extracted_bus_stops, df)
   
   if(i %% update_every_iter == 0){
