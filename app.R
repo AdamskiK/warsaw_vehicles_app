@@ -13,8 +13,7 @@ library("shinydashboard")
 
 # read bus stop nr and coordinates
 bus_stop_df <- read.csv("extracted_bus_stops.csv")
-bus_stop_df <- bus_stop_df %>% 
-  slice(2000:2500)
+bus_stop_df <- bus_stop_df[sample(nrow(bus_stop_df), 100), ]
 
 
 # read mapped bus lines to bus ids
@@ -26,16 +25,16 @@ for(i in 1:length(bus_line_mapping$busline)){
 }
 
 
-aligned_bus_stops <- function(bus_line_vector){
+aligned_bus_stops <- function(line_vector){
   
-  if(!is.null(bus_line_vector) == T){
+  if(!is.null(line_vector) == T){
     
     df <- data.frame()
-    for(i in 1:length(bus_line_vector)){
+    for(i in 1:length(line_vector)){
       
       for(j in 1:length(bus_line_mapping$busline)){
         
-        if(bus_line_vector[i] %in% bus_line_mapping$busline[[j]]){
+        if(line_vector[i] %in% bus_line_mapping$busline[[j]]){
           df <- rbind(df, data.frame(id_nr = bus_line_mapping$id_nr[j],
                                      lat = bus_line_mapping$lat[j],
                                      lon = bus_line_mapping$lon[j]))
@@ -701,13 +700,13 @@ server <- shinyServer(function(input, output, session) {
         #                  bus_stop_df$id_nr,
         #                  aligned_bus_stops(input$bus_location_labels)$id_nr), # bus_stop_info$markerId,
         
-        lng = aligned_bus_stops(input$bus_location_labels)$lon,
+        lng = aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))$lon,
         
-        lat = aligned_bus_stops(input$bus_location_labels)$lat,
+        lat = aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))$lat,
         
         icon = icon.users,
         
-        layerId = aligned_bus_stops(print(input$bus_location_labels))$id_nr,
+        layerId = aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))$id_nr,
         
         popup = return_bus_stop_info(input$mymap_marker_click$id)
       )
