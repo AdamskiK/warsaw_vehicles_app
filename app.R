@@ -12,13 +12,19 @@ library("shinydashboard")
 
 
 # read bus stop nr and coordinates
-bus_stop_df <- read.csv("2018_08_17_22_09_53_extracted_bus_stops.csv", stringsAsFactors = F)
-bus_stop_df <- bus_stop_df[sample(nrow(bus_stop_df), 100), ]
+bus_stop_df_full <- read.csv("2018_08_17_22_09_53_extracted_bus_stops.csv", stringsAsFactors = F)
+bus_stop_df <- bus_stop_df_full[sample(nrow(bus_stop_df_full), 100), ]
 
 
 # read mapped bus lines to bus ids
 bus_line_mapping <- read.csv("mapped_bus_lines.csv", stringsAsFactors = F)
 bus_line_mapping
+
+# add bus stop names to the mapped bus lines
+bus_line_mapping <- merge(x = bus_line_mapping, 
+                          y = bus_stop_df_full[, c("id_nr", "street_name", "busstop_name")], 
+                          by = "id_nr",
+                          all.x = TRUE)
 
 for(i in 1:length(bus_line_mapping$busline)){
   bus_line_mapping$busline[i] <- list(gsub(" ", "", as.list(strsplit(bus_line_mapping$busline[[i]], ","))[[1]]))
@@ -35,10 +41,14 @@ aligned_bus_stops <- function(line_vector){
       for(j in 1:length(bus_line_mapping$busline)){
         
         if(line_vector[i] %in% bus_line_mapping$busline[[j]]){
+          
+          # print("HC start")
           df <- rbind(df, data.frame(id_nr = bus_line_mapping$id_nr[j],
                                      lat = bus_line_mapping$lat[j],
                                      lon = bus_line_mapping$lon[j],
+                                     street_name = bus_line_mapping$street_name[j],
                                      busstop_name = bus_line_mapping$busstop_name[j]))
+          # print("HC end")
         }else{
           
         }
@@ -192,7 +202,7 @@ return_bus_stop_info <- function(layer_id){
   # debug
   # layer_id <- "322901"
   print("#0#")
-  print(c("layer id is: ", layer_id))
+  # print(c("layer id is: ", layer_id))
   
   if(!is.null(layer_id)){
     # print("enter return_bus_stop_info")
@@ -200,7 +210,7 @@ return_bus_stop_info <- function(layer_id){
     busStopId <-  substr(layer_id, 1, 4)
     busStopNr <- substr(layer_id, 5, 6)
     
-    print(c(busStopId, busStopNr))
+    # print(c(busStopId, busStopNr))
     
     print("#1#")
     
@@ -494,7 +504,7 @@ server <- shinyServer(function(input, output, session) {
       
       # print("enter 2")
       trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% c("9"))
-      buses_data <- data$buses_data %>% dplyr::filter(Lines %in% print(input$bus_location_labels))
+      buses_data <- data$buses_data %>% dplyr::filter(Lines %in% input$bus_location_labels)
       tram_label_list <- data$tram_label_list
       bus_label_list <- data$bus_label_list
       
@@ -705,7 +715,7 @@ server <- shinyServer(function(input, output, session) {
         
         layerId = aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))$id_nr,
         
-        # popup = return_bus_stop_info(input$mymap_marker_click$id),
+        popup = return_bus_stop_info(input$mymap_marker_click$id),
         
         label = aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))$busstop_name
 

@@ -8,10 +8,6 @@ substrRight <- function(x, n){
   substr(x, nchar(x)-n+1, nchar(x))
 }
 
-substrLeft <- function(x, n){
-  substr(x, 1, n)
-}
-
 # example data for tests
 ex_schedule <- readtext("3229_example_from_bus_schedule_ztm.txt")
 ex_schedule$text
@@ -42,18 +38,22 @@ for(i in 1:length(all_busstopids$stopId)){
   get_bus_id_nr <- stri_extract_all(bus_schedule_info$text, regex = paste0("\\s", all_busstopids$stopId[i],"\\d{2}"))
   get_lat <- stri_extract_all(bus_schedule_info$text, regex = paste0("\\s", all_busstopids$stopId[i],".*Ul.*(Y=\\s\\d{2}\\.\\d{6}?)"))[[1]]
   get_lon <- stri_extract_all(bus_schedule_info$text, regex = paste0("\\s", all_busstopids$stopId[i],".*Ul.*(X=\\s\\d{2}\\.\\d{6}?)"))[[1]]
-  busstop_name <- stri_extract_all(bus_schedule_info$text, regex = paste0(all_busstopids$stopId[i],"\\d{2}.*?:\\s(.+?),"))[[1]]
-
+  street_name <- stri_extract_all(bus_schedule_info$text, regex = paste0(all_busstopids$stopId[i],"\\d{2}.*?:\\s(.+?),"))[[1]]
+  busstop_name <- stri_extract_all(bus_schedule_info$text, regex = paste0("\\s", all_busstopids$stopId[i],"\\s(.+),+?"))[[1]]
   
   processed_lon <- substrRight(get_lon, 9)
   processed_lat <- substrRight(get_lat, 9)
-  processed_busstop_name <- unlist(stri_extract_all(busstop_name, regex = "(?<=:\\s).+[^,]"))
+  processed_street_name <- unlist(stri_extract_all(street_name, regex = "(?<=:\\s).+[^,]"))
+  processed_busstop_name <- unlist(stri_extract_all(unlist(stri_extract_all(busstop_name, 
+                                                                     regex = "(?<=\\d{4}).+[^,]")),
+                                             regex = "[^\\s].+"))
   
   
   df <- data.frame(id_nr = unlist(get_bus_id_nr), 
                    lon = processed_lon, 
                    lat = processed_lat, 
-                   busstop_name = processed_busstop_name)
+                   street_name = processed_street_name,
+                   busstop_name= processed_busstop_name)
   
   
   extracted_bus_stops <- rbind(extracted_bus_stops, df)
@@ -84,6 +84,9 @@ sys_time <- gsub(":", "_", gsub(" ", "_", gsub("-", "_", Sys.time())))
 write.csv(extracted_bus_stops, paste0(sys_time, "_extracted_bus_stops.csv"), row.names = F)
 
 
+
+
+
 # testing
 
 et_bus_id_nr <- stri_extract_all(ex_schedule$text, regex = paste0("\\s", 3229,"\\d\\d"))
@@ -92,4 +95,6 @@ get_lon <- stri_extract_all(ex_schedule$text, regex = paste0("\\s", 3229,"\\d{2}
 processed_lon <- substrRight(get_lon, 9)
 processed_lat <- substrRight(get_lat, 9)
 
-                                             
+     
+
+
