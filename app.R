@@ -12,7 +12,7 @@ library("shinydashboard")
 
 
 # read bus stop nr and coordinates
-bus_stop_df <- read.csv("extracted_bus_stops.csv")
+bus_stop_df <- read.csv("2018_08_17_22_09_53_extracted_bus_stops.csv", stringsAsFactors = F)
 bus_stop_df <- bus_stop_df[sample(nrow(bus_stop_df), 100), ]
 
 
@@ -37,7 +37,8 @@ aligned_bus_stops <- function(line_vector){
         if(line_vector[i] %in% bus_line_mapping$busline[[j]]){
           df <- rbind(df, data.frame(id_nr = bus_line_mapping$id_nr[j],
                                      lat = bus_line_mapping$lat[j],
-                                     lon = bus_line_mapping$lon[j]))
+                                     lon = bus_line_mapping$lon[j],
+                                     busstop_name = bus_line_mapping$busstop_name[j]))
         }else{
           
         }
@@ -52,10 +53,6 @@ aligned_bus_stops <- function(line_vector){
   return(df)
 }
   
-  
-  
-# "306" %in% bus_line_mapping$busline[[1]]
-
 
 # API KEY
 apikey <- "2b5e76a6-5515-4eb8-b173-130a648f210a"
@@ -124,7 +121,7 @@ handle_empty_response <- function(data, call) {
 # convert polish letters into coded values
 convert_polish_letters <- function(name) {
 
-  old_letters <- c("A","C","E","L","N","Ó","S","Z","Z","a","c","e","l","n","ó","s","z","z")
+  old_letters <- c("A","C","E","L","N","?","S","Z","Z","a","c","e","l","n","?","s","z","z")
   new_letters <- c("%C4%84","%C4%86","%C4%98","%C5%81","%C5%83","%C3%93","%C5%9A","%C5%B9",
                    "%C5%BB","%C4%85","%C4%87","%C4%99","%C5%82","%C5%84","%C3%B3","%C5%9B",
                    "%C5%BA","%C5%BC")
@@ -625,7 +622,7 @@ server <- shinyServer(function(input, output, session) {
   icon.home <- makeAwesomeIcon(icon = 'home', library = "fa", markerColor = "green")
   icon.tram <- makeAwesomeIcon(icon = 'train', library = "fa", markerColor = "blue")
   icon.bus <- makeAwesomeIcon(icon = 'bus', library = "fa", markerColor = "red")
-  icon.users <- makeAwesomeIcon(icon = 'users', library = "fa", markerColor = "purple")
+  icon.users <- makeAwesomeIcon(icon = 'users', library = "fa", markerColor = "beige")
   
   
   output$mymap <- renderLeaflet({
@@ -708,7 +705,10 @@ server <- shinyServer(function(input, output, session) {
         
         layerId = aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))$id_nr,
         
-        popup = return_bus_stop_info(input$mymap_marker_click$id)
+        # popup = return_bus_stop_info(input$mymap_marker_click$id),
+        
+        label = aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))$busstop_name
+
       )
     
   },ignoreNULL = FALSE)
