@@ -13,7 +13,7 @@ library("shinydashboard")
 
 # read bus stop nr and coordinates
 bus_stop_df_full <- read.csv("2018_08_17_23_45_08_extracted_bus_stops.csv", stringsAsFactors = F)
-bus_stop_df <- bus_stop_df_full[sample(nrow(bus_stop_df_full), 100), ]
+bus_stop_df <- bus_stop_df_full[sample(nrow(bus_stop_df_full), 50), ]
 
 
 # read mapped bus lines to bus ids
@@ -483,7 +483,7 @@ server <- shinyServer(function(input, output, session) {
   
   
   # time set to refresh every x msec - has to be passed as an argument
-  autoInvalidate <- reactiveTimer(10000)
+  autoInvalidate <- reactiveTimer(30000)
   
   
   reData <- eventReactive(autoInvalidate(), {
@@ -503,7 +503,7 @@ server <- shinyServer(function(input, output, session) {
     }else if(is.null(input$tram_location_labels) == T & is.null(input$bus_location_labels) == F){
       
       # print("enter 2")
-      trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% c("9"))
+      trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% c("33"))
       buses_data <- data$buses_data %>% dplyr::filter(Lines %in% input$bus_location_labels)
       tram_label_list <- data$tram_label_list
       bus_label_list <- data$bus_label_list
@@ -640,88 +640,145 @@ server <- shinyServer(function(input, output, session) {
     url_my_github <- a("Kamil Adamski", href="https://github.com/AdamskiK")
     url_contrib <- a("Miasto Stoleczne Warszawa", href="https://api.um.warszawa.pl/")
     leaflet <- leaflet() %>%
+      
       addTiles() %>%
+      
       addTiles(attribution =
                  paste("(c) 2018 ",url_map, ", ", url_my_github, ", ", url_contrib, sep="")) %>%
-      fitBounds(input$long-0.005, input$lat-0.005, input$long+0.005, input$lat+0.005)
+      
+      fitBounds(input$long-0.030, input$lat-0.030, input$long+0.030, input$lat+0.030) %>%
+      
+      addAwesomeMarkers(
+        lng = bus_stop_df$lon,
+        lat = bus_stop_df$lat,
+        icon = icon.users,
+        layerId = as.character(bus_stop_df$id_nr),
+        label = bus_stop_df$busstop_name
+      )
       
     return(leaflet)
   })
   
-  # observeEvent(input$mymap_marker_click, { # update the location selectInput on map clicks
-  #   print("hello")
-  #   p <- input$mymap_marker_click
-  #   print(return_bus_stop_info(input$mymap_marker_click$id))
-  # })
-  
-  trigger_bus_info <- eventReactive(input$mymap_marker_click, {
-    output <- return_bus_stop_info(input$mymap_marker_click$id)
-    return(output)
-  })
 
-  # bus_labels <- reactive({
-  #   
-  #   bus_labels <- return_bus_stop_info(input$mymap_marker_click$id)
-  #   
-  #   return(bus_labels)
-  # })
+  # a function which creates layer_id's for a given dataset and a layer_name
+  create_layer_id <- function(data, layer_name){
+    
+    data_length <- length(data)
+    
+    if(data_length > 0){
+      empty_string <- paste0(layer_name, 1)
+      
+      for(i in 2:data_length){
+        empty_string <- c(empty_string, paste0(layer_name,i))
+      }
+      
+    }else{
+      # do nothing
+    }
+    
+    return(empty_string)
+  }
   
+  # create a backup_layer_id dataset with purpose of remobing existing layer_id's
+  data <- rep(1, 500)
+  backup_tram_layer_id <- create_layer_id(data, "tram")
+  backup_bus_layer_id <- create_layer_id(data, "bus")
   
+  # in purpose of managing tram and bus locations
   observeEvent(autoInvalidate(), {
+    
+    tram_data <- tram_points()
+    tram_layer_id <- create_layer_id(tram_data$Lat, "tram")
+    
+    bus_data <- bus_points()
+    bus_layer_id <- create_layer_id(bus_data$Lat, "bus")
+    
+    
     leafletProxy("mymap") %>%
-      clearMarkers() %>%
+      removeMarker(backup_tram_layer_id) %>%
+      removeMarker(backup_bus_layer_id) %>%
+      # clearMarkers() %>% # remove all markers with not defined layer_id's
       
       addAwesomeMarkers(
-        lng = tram_points()$Lon,
-        lat = tram_points()$Lat,
+        lng = tram_data$Lon,
+        lat = tram_data$Lat,
         icon = icon.tram,
-        label = tram_labels()
+        label = tram_labels(),
+        layerId = tram_layer_id
       ) %>%
   
       addAwesomeMarkers(
-        lng = bus_points()$Lon,
-        lat = bus_points()$Lat,
+        lng = bus_data$Lon,
+        lat = bus_data$Lat,
         icon = icon.bus,
-        label = bus_labels()
-      ) %>%
+        label = bus_labels(),
+        layerId = bus_layer_id
+      )
       
+  },ignoreNULL = FALSE)
+  
+  
+  # all_busstop_layer_ids <- aligned_bus_stops(NULL)$id_nr
+  all_busstop_layer_ids <- bus_stop_df_full$id_nr
+
+  
+  # autoInvalidate2 <- reactiveTimer(20000)
+  
+  
+  observeEvent(c(input$bus_location_labels, input$tram_location_labels), {
+    
+    tram_data <- tram_points()
+    tram_layer_id <- create_layer_id(tram_data$Lat, "tram")
+    
+    bus_data <- bus_points()
+    bus_layer_id <- create_layer_id(bus_data$Lat, "bus")
+    
+    
+    leafletProxy("mymap") %>%
+      removeMarker("home") %>%
+      removeMarker(as.character(all_busstop_layer_ids)) %>%
+      removeMarker(backup_tram_layer_id) %>%
+      removeMarker(backup_bus_layer_id) %>%
+      
+
       addAwesomeMarkers(
         lng = ifelse(is.null(input$long) == T, 0, input$long),
         lat = ifelse(is.null(input$lat) == T, 0, input$lat),
         icon = icon.home,
-        label = "Your position"
+        label = "Your position",
+        layerId = "home"
+      ) %>%
+
+      addAwesomeMarkers(
+        lng = aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))$lon,
+        lat = aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))$lat,
+        icon = icon.users,
+        layerId = as.character(aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))$id_nr),
+        popup = print(return_bus_stop_info(input$mymap_marker_click$id)),
+        label = aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))$busstop_name
       ) %>%
       
       addAwesomeMarkers(
-        # lng = ifelse(is.null(input$bus_location_labels), 
-        #              bus_stop_df$lon, 
-        #              aligned_bus_stops(input$bus_location_labels)$lon), # bus_stop_info$Lon,
-        # 
-        # lat = ifelse(is.null(input$bus_location_labels),
-        #              bus_stop_df$lat,
-        #              aligned_bus_stops(input$bus_location_labels)$lat), # bus_stop_info$Lat,
-        # 
-        # icon = icon.users,
-        # 
-        # layerId = ifelse(is.null(input$bus_location_labels),
-        #                  bus_stop_df$id_nr,
-        #                  aligned_bus_stops(input$bus_location_labels)$id_nr), # bus_stop_info$markerId,
-        
-        lng = aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))$lon,
-        
-        lat = aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))$lat,
-        
-        icon = icon.users,
-        
-        layerId = aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))$id_nr,
-        
-        popup = return_bus_stop_info(input$mymap_marker_click$id),
-        
-        label = aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))$busstop_name
-
+        lng = tram_data$Lon,
+        lat = tram_data$Lat,
+        icon = icon.tram,
+        label = tram_labels(),
+        layerId = tram_layer_id
+      ) %>%
+      
+      addAwesomeMarkers(
+        lng = bus_data$Lon,
+        lat = bus_data$Lat,
+        icon = icon.bus,
+        label = bus_labels(),
+        layerId = bus_layer_id
       )
     
+      Sys.sleep(5)
   },ignoreNULL = FALSE)
+  
+  
+  
 })
 
 
