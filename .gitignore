@@ -20,3 +20,4 @@
 .Rproj.user
 warsaw-public-transport.Rproj
 *.csv
+/api_calls.txt

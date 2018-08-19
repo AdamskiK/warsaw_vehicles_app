@@ -9,6 +9,7 @@ library("shiny")
 library("leaflet")
 library("dplyr")
 library("shinydashboard")
+library("readtext")
 
 
 # read bus stop nr and coordinates
@@ -131,7 +132,8 @@ handle_empty_response <- function(data, call) {
 # convert polish letters into coded values
 convert_polish_letters <- function(name) {
 
-  old_letters <- c("A","C","E","L","N","?","S","Z","Z","a","c","e","l","n","?","s","z","z")
+  # old_letters <- c("A","C","E","L","N","?","S","Z","Z","a","c","e","l","n","?","s","z","z")
+  old_letters <- read.csv("polish_letters.csv", stringsAsFactors = F)$letters
   new_letters <- c("%C4%84","%C4%86","%C4%98","%C5%81","%C5%83","%C3%93","%C5%9A","%C5%B9",
                    "%C5%BB","%C4%85","%C4%87","%C4%99","%C5%82","%C5%84","%C3%B3","%C5%9B",
                    "%C5%BA","%C5%BC")
@@ -144,6 +146,9 @@ convert_polish_letters <- function(name) {
   
   return(name)
 }
+
+# debug convert_polish_letters
+# convert_polish_letters("Madalińskiego")
 
 
 get_bus_stop_id <- function(name){
