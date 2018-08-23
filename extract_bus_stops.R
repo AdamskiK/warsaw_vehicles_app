@@ -89,7 +89,7 @@ write.csv(extracted_bus_stops, paste0(sys_time, "_extracted_bus_stops.csv"), row
 
 # testing
 
-et_bus_id_nr <- stri_extract_all(ex_schedule$text, regex = paste0("\\s", 3229,"\\d\\d"))
+get_bus_id_nr <- stri_extract_all(ex_schedule$text, regex = paste0("\\s", 3229,"\\d\\d"))
 get_lat <- stri_extract_all(ex_schedule$text, regex = paste0("\\s", 3229,".*Ul.Pl.:\\s(.?)\\,"))[[1]]
 get_lon <- stri_extract_all(ex_schedule$text, regex = paste0("\\s", 3229,"\\d{2}.*Ul.*(X=\\s\\d{2}\\.\\d{6}?)"))[[1]]
 processed_lon <- substrRight(get_lon, 9)
