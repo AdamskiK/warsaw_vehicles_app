@@ -10,6 +10,7 @@ library("leaflet")
 library("dplyr")
 library("shinydashboard")
 library("readtext")
+library("DT")
 
 
 # read bus stop nr and coordinates
@@ -32,28 +33,39 @@ for(i in 1:length(bus_line_mapping$busline)){
 }
 
 
-aligned_bus_stops <- function(line_vector){
+aligned_bus_stops <- function(line_vector, busid_full){
+  start0 <- Sys.time()
   
   if(!is.null(line_vector) == T){
     
     df <- data.frame()
+    
+    # a search through a vector of bus/tram lines
     for(i in 1:length(line_vector)){
       
-      for(j in 1:length(bus_line_mapping$busline)){
+      get_vector_with_indices <- which(lapply(lapply(bus_line_mapping$busline, function(x) grep(line_vector[i],x)), length) > 0)
+      get_vec_bus_id_index <- which(lapply(lapply(bus_line_mapping$id_nr, function(x) grep(as.numeric(busid_full),x)), length) > 0)
         
-        if(line_vector[i] %in% bus_line_mapping$busline[[j]]){
-          
-          # print("HC start")
-          df <- rbind(df, data.frame(id_nr = bus_line_mapping$id_nr[j],
-                                     lat = bus_line_mapping$lat[j],
-                                     lon = bus_line_mapping$lon[j],
-                                     street_name = bus_line_mapping$street_name[j],
-                                     busstop_name = bus_line_mapping$busstop_name[j]))
-          # print("HC end")
-        }else{
-          
-        }
+      # print(c("get_vec_bus_id_index is", get_vec_bus_id_index))
+      
+      for(j in get_vector_with_indices){
+        start <- Sys.time()
         
+        df <- rbind(df, data.frame(id_nr = bus_line_mapping$id_nr[j],
+                                   lat = bus_line_mapping$lat[j],
+                                   lon = bus_line_mapping$lon[j],
+                                   street_name = bus_line_mapping$street_name[j],
+                                   busstop_name = bus_line_mapping$busstop_name[j],
+
+                                   bus_time_table = if(as.character(j) == get_vec_bus_id_index){
+                                     return_bus_stop_info(as.character(bus_line_mapping$id_nr[j]))["base"][[1]]
+                                   }else{
+                                     ""
+                                   }
+        ))
+        
+        # print(c("one loop takes: ", Sys.time() - start, " per one bus time table"))
+        # print(c("till now it takes: ", Sys.time() - start0))
       }
     }
     
@@ -118,15 +130,19 @@ get_API_response <- function(call){
 
 handle_empty_response <- function(data, call) {
   
+
   while(class(data) == "list"){
     
-    Sys.sleep(1)
+    Sys.sleep(3)
     data <- get_API_response(call)
-    cat("-empty-")
+    
+    cat("-empty")
     
   }
+  
   return(data)
-}
+  }
+
 
 
 # convert polish letters into coded values
@@ -191,102 +207,112 @@ get_bus_timetable <- function(busstopId, busstopNr,line){
                   "&busstopNr=", busstopNr,
                   "&line=", line,
                   "&apikey=", apikey)
-  
 
   bus_timetable <- get_API_response(call5)
-  bus_timetable <- handle_empty_response(bus_timetable, call4)
-
   
   return(list("bus_timetable" = bus_timetable))
 }
 
 
 return_bus_stop_info <- function(layer_id){
+  # start <- Sys.time()
 
-  # print(c("layer_id is null: ", is.null(layer_id)))
   # debug
   # layer_id <- "322901"
-  print("#0#")
-  # print(c("layer id is: ", layer_id))
   
-  if(!is.null(layer_id)){
-    # print("enter return_bus_stop_info")
-    print(c("layer id is: ", layer_id))
+  print("#0#")
+  bolean <-  !is.na(as.numeric(layer_id)) && !is.null(layer_id)
+  if(bolean){
     busStopId <-  substr(layer_id, 1, 4)
     busStopNr <- substr(layer_id, 5, 6)
     
     # print(c(busStopId, busStopNr))
     
-    print("#1#")
-    
+    # print("#1 - getting busstop lines #")
     get_list <- get_bus_stop_lines(busStopId, busStopNr)
+    # print(c("get list consists of :", get_list))
     
-    if(get_list == "BadSqlGrammarException"){
+    if(length(get_list) == 0){
 
       print("#1a#")
       base <- "API Error"
 
     }else{
       
-    # vehicle_list <- sapply(get_bus_stop_lines(get_bus_stop_id("Madalinskiego")[[1]][[1]]$value[1], "01")[1]$values, function(x) x$value)
+    
     vehicle_list <- sapply(get_list$values, function(x) x$value)
-    print("#2#")
+    # print(c("vehicle_list is: ", vehicle_list))
+    
+    # print("#2 - enter loop#")
+    bt_df <- data.frame()
     for(i in 1:length(vehicle_list)){
-      print("#3#")
-      if(i == 1){
-        get_bt <- get_bus_timetable(busStopId, busStopNr, vehicle_list[i])[[1]]
-        df <- get_bt %>% mutate(bus = vehicle_list[i])
-        print("#4#")
-      }else{
-        print("#5#")
-        # double brackets can be helpful because of functions priority
-        df <- df %>% 
-          bind_rows((get_bus_timetable(busStopId, busStopNr, vehicle_list[i])[[1]] %>% mutate(bus = vehicle_list[i])))
-          
-        
+      
+      get_bus_tt <- get_bus_timetable(busStopId, busStopNr, vehicle_list[i])[[1]]
+      if(class(get_bus_tt) == "list"){next}
+      
+      # print(c("looped nr: ", i))
+      # print(c("vehicle is: ", vehicle_list[i]))
+      
+      bt_df <- bt_df %>% 
+        bind_rows(get_bus_tt %>% mutate(bus = vehicle_list[i]))
+      
+    }
+    
+    # check cpnfition if final bt_df is a list, then return empty string
+    if(class(bt_df) == "list"){
+      
+      base <-  ""
+    
+    }else{
+      
+      # print("#6#")
+      df_time <- sapply(bt_df$values, function(x) x$value)[6,]
+      df_bus <- bt_df$bus
+      # print("#6a#")
+      # let's work with df
+      df_time <- data.frame(do.call(c, lapply(df_time, function(x) as.POSIXct(x, format = "%H:%M:%S"))))
+      # print("#6b#")
+      df_bus <- bt_df$bus
+      # print("#6c#")
+      df_final <- cbind(df_bus, df_time)
+      # print("#6d#")
+      names(df_final) <- c("busNr", "time")
+      # print("#6e#")
+      df_final_output <- df_final %>%
+        filter(time > Sys.time()) %>%
+        group_by(busNr) %>%
+        mutate(rank = dense_rank(c(time))) %>%
+        ungroup() %>%
+        filter(rank <= 2) %>%
+        arrange(time) %>%
+        mutate(time_left = round(time - Sys.time())) %>%
+        select(busNr, time_left)
+      
+      
+      # print("#7#")
+      # a new way of getting proper print output
+      df_final_output <- data.frame(df_final_output)
+      # print(df_final_output)
+      # print("#9#")
+      aa <- apply(df_final_output[ , c("busNr", "time_left") ] , 1 , paste , collapse = "-" )
+      # print("#10#")
+      gdb <- gsub("-", " - ", gsub(" ", "", aa))
+      
+      # print("#11#")
+      base <- paste0(gdb[1],"</strong>", "<br/>")
+      for(i in 2:length(gdb)){
+        base <- paste0(base, "<strong>", gdb[i],"</strong>", "<br/>")
       }
+      # print("#12#")
+      base <- paste0("<strong>", base)
+      # print("#13#")
+      base <- base %>% lapply(htmltools::HTML)
+      base <- base[[1]]
+      # print("#14#")
+      
     }
-    print("#6#")
-    df_time <- sapply(df$values, function(x) x$value)[6,]
-    df_bus <- df$bus
-    print("#6#")
-    # let's work with df
-    df_time <- data.frame(do.call(c, lapply(df_time, function(x) as.POSIXct(x, format = "%H:%M:%S"))))
-    df_bus <- df$bus
-    df_final <- cbind(df_bus, df_time)
-    names(df_final) <- c("busNr", "time")
-    df_final_output <- df_final %>%
-      filter(time > Sys.time()) %>%
-      group_by(busNr) %>%
-      mutate(rank = dense_rank(c(time))) %>%
-      ungroup() %>%
-      filter(rank <= 2) %>%
-      arrange(time) %>%
-      mutate(time_left = round(time - Sys.time())) %>%
-      select(busNr, time_left)
-    
-    
-    print("#7#")
-    # a new way of getting proper print output
-    df_final_output <- data.frame(df_final_output)
-    print("#9#")
-    aa <- apply(df_final_output[ , c("busNr", "time_left") ] , 1 , paste , collapse = "-" )
-    print("#10#")
-    gdb <- gsub("-", " - ", gsub(" ", "", aa))
-    
-    print("#11#")
-    base <- paste0(gdb[1],"</strong>", "<br/>")
-    for(i in 2:length(gdb)){
-      base <- paste0(base, "<strong>", gdb[i],"</strong>", "<br/>")
     }
-    print("#12#")
-    base <- paste0("<strong>", base)
-    print("#13#")
-    base <- base %>% lapply(htmltools::HTML)
-    base <- base[[1]]
-    print("#14#")
     
-    }
   }else{
     
     # if the layer_id is empty then return an empty sting 
@@ -294,9 +320,16 @@ return_bus_stop_info <- function(layer_id){
     
   }
   
+  # testing purpose
+
+  # print("returning bus stop info")
+  print("#15 - return timetable#")
   
-  print("#15#")
-  return(base)
+  # print(c("one loop takes: ", (Sys.time() - start)/i, " per one bus time table"))
+
+  return(list("base" = base,
+              "df_final_output" = df_final_output))
+  # return(base)
 }
 
 
@@ -317,13 +350,13 @@ getData <- function(){
   call2 <- paste0(base_bus,"?","resource_id=",id_bus,"&","apikey=",apikey,"&type=1")
   
   
-  print("### 1 ###")
+  print("### 1 - get api###")
   
   trams_data <- get_API_response(call1)
   buses_data <- get_API_response(call2)
   
   
-  print("### 2 ###")
+  print("### 2 - handling empty response ###")
   
   trams_data <- handle_empty_response(trams_data, call1)
   buses_data <- handle_empty_response(buses_data, call2)
@@ -349,7 +382,7 @@ getData <- function(){
     return(data)
   }
   
-  print("### 5 ###")
+  print("### 5 - filter outliers ###")
   
   trams_data <- filter_outliers(trams_data)
   buses_data <- filter_outliers(buses_data)
@@ -453,7 +486,8 @@ ui <- dashboardPage(
   ),
   dashboardBody(
 
-  leafletOutput("mymap", width = "auto", height = "1080px")
+  leafletOutput("mymap", width = "auto", height = "700px"),
+  DT::dataTableOutput("tableDT")
   
   
  
@@ -488,7 +522,7 @@ server <- shinyServer(function(input, output, session) {
   
   
   # time set to refresh every x msec - has to be passed as an argument
-  autoInvalidate <- reactiveTimer(30000)
+  autoInvalidate <- reactiveTimer(15000)
   
   
   reData <- eventReactive(autoInvalidate(), {
@@ -651,15 +685,15 @@ server <- shinyServer(function(input, output, session) {
       addTiles(attribution =
                  paste("(c) 2018 ",url_map, ", ", url_my_github, ", ", url_contrib, sep="")) %>%
       
-      fitBounds(input$long-0.030, input$lat-0.030, input$long+0.030, input$lat+0.030) %>%
+      fitBounds(input$long-0.030, input$lat-0.030, input$long+0.030, input$lat+0.030) #%>%
       
-      addAwesomeMarkers(
-        lng = bus_stop_df$lon,
-        lat = bus_stop_df$lat,
-        icon = icon.users,
-        layerId = as.character(bus_stop_df$id_nr),
-        label = bus_stop_df$busstop_name
-      )
+      # addAwesomeMarkers(
+      #   lng = bus_stop_df$lon,
+      #   lat = bus_stop_df$lat,
+      #   icon = icon.users,
+      #   layerId = as.character(bus_stop_df$id_nr),
+      #   label = bus_stop_df$busstop_name
+      # )
       
     return(leaflet)
   })
@@ -689,12 +723,19 @@ server <- shinyServer(function(input, output, session) {
   backup_tram_layer_id <- create_layer_id(data, "tram")
   backup_bus_layer_id <- create_layer_id(data, "bus")
   
+  
+  
   # in purpose of managing tram and bus locations
   observeEvent(autoInvalidate(), {
     
+    
+    print(c("enter observeEvent#1a"))
     tram_data <- tram_points()
+    # print(c("tram_data are: ", tram_data))
     tram_layer_id <- create_layer_id(tram_data$Lat, "tram")
     
+    
+    print(c("enter observeEvent#1b"))
     bus_data <- bus_points()
     bus_layer_id <- create_layer_id(bus_data$Lat, "bus")
     
@@ -723,20 +764,91 @@ server <- shinyServer(function(input, output, session) {
   },ignoreNULL = FALSE)
   
   
-  # all_busstop_layer_ids <- aligned_bus_stops(NULL)$id_nr
+  # get all bus stop IDs
   all_busstop_layer_ids <- bus_stop_df_full$id_nr
+                
+  
+  
+  
+  
+  reactive_timetable <- reactive({
 
+    boolean_value <- 
+      is.null(input$mymap_marker_click$id) | 
+      is.null(input$bus_location_labels) & 
+      is.null(input$tram_location_labels)
+    
+    if(boolean_value){
+
+      aligned_data <- aligned_bus_stops("174", "322901") %>%
+        filter(bus_time_table != "")
+      bus_timetable <- return_bus_stop_info("322901")["df_final_output"][[1]]
+
+    }else{
+
+      aligned_data <- aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels),
+                                        input$mymap_marker_click$id)
+      bus_timetable <- return_bus_stop_info(as.character(input$mymap_marker_click$id))["df_final_output"][[1]]
+
+    }
+
+    print(c("aligned_data inside reactive_timetable: ", aligned_data))
+    return(list("aligned_data" = aligned_data,
+                "bus_timetable" = bus_timetable))
+  })
   
-  # autoInvalidate2 <- reactiveTimer(20000)
+  # datatable(data.frame(reactive_timetable()$aligned_data$busstop_name))
+  # datatable(reactive_timetable()$aligned_data$bus_time_table)
+
+  output$tableDT <- DT::renderDataTable(datatable(data.frame(reactive_timetable()$bus_timetable)),
+                                        options = list(paging=F),
+                                        rownames=F,
+                                        filter = "top")
   
   
+  btt_reactive_timer <- reactiveTimer(10000)              
+                
   observeEvent(c(input$bus_location_labels, input$tram_location_labels), {
+    
+    print(c("enter observeEvent#2"))
+    # print(c("boolean is: ", c(input$bus_location_labels & input$tram_location_labels | input$mymap_marker_click)))
     
     tram_data <- tram_points()
     tram_layer_id <- create_layer_id(tram_data$Lat, "tram")
+    # print(c("after tram_layer_id creation"))
     
     bus_data <- bus_points()
     bus_layer_id <- create_layer_id(bus_data$Lat, "bus")
+    # print(c("after bus_layer_id creation"))
+    
+    print(paste0("input$mymap_marker_click$id is: ", is.null(input$mymap_marker_click$id), " of value: ", input$mymap_marker_click$id))
+    
+    boolean_value <- 
+      is.null(input$mymap_marker_click$id) | 
+      is.null(input$bus_location_labels) & 
+      is.null(input$tram_location_labels)
+    
+    # ddd <- reactive_timetable()
+    
+    print(c("boolean mymap_marker_click$id is: ", is.null(input$mymap_marker_click)))
+    print(c("boolean bus_location_labels is: ", is.null(input$bus_location_labels)))
+    print(c("boolean tram_location_labels is: ", is.null(input$tram_location_labels)))
+    print(c("boolean general is: ", boolean_value))
+    # print(c("boolean reactive_timetable is null: ", is.null(ddd)))
+    
+    
+
+    if(boolean_value){
+
+      aligned_data <- aligned_bus_stops("174", "322901") %>% 
+        filter(bus_time_table != "")
+      
+    }else{
+
+      aligned_data <- aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels),
+                                        input$mymap_marker_click$id)
+
+    }
     
     
     leafletProxy("mymap") %>%
@@ -755,12 +867,13 @@ server <- shinyServer(function(input, output, session) {
       ) %>%
 
       addAwesomeMarkers(
-        lng = aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))$lon,
-        lat = aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))$lat,
+        lng = print(reactive_timetable()$aligned_data$lon),
+        lat = reactive_timetable()$aligned_data$lat,
         icon = icon.users,
-        layerId = as.character(aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))$id_nr),
-        popup = print(return_bus_stop_info(input$mymap_marker_click$id)),
-        label = aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))$busstop_name
+        layerId = as.character(reactive_timetable()$aligned_data$id_nr),
+        label = reactive_timetable()$aligned_data$busstop_name#,
+        # popup = reactive_timetable()$aligned_data$bus_time_table
+        
       ) %>%
       
       addAwesomeMarkers(
@@ -779,8 +892,63 @@ server <- shinyServer(function(input, output, session) {
         layerId = bus_layer_id
       )
     
-      Sys.sleep(5)
   },ignoreNULL = FALSE)
+  
+  # observeEvent(c(input$bus_location_labels, input$tram_location_labels), {
+  # 
+  #   tram_data <- tram_points()
+  #   tram_layer_id <- create_layer_id(tram_data$Lat, "tram")
+  # 
+  #   bus_data <- bus_points()
+  #   bus_layer_id <- create_layer_id(bus_data$Lat, "bus")
+  # 
+  #   aligned_data <- aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))
+  # 
+  #   leafletProxy("mymap") %>%
+  #     # removeMarker("home") %>%
+  #     removeMarker(as.character(all_busstop_layer_ids)) %>%
+  #     # removeMarker(backup_tram_layer_id) %>%
+  #     # removeMarker(backup_bus_layer_id) %>%
+  # 
+  # 
+  #     # addAwesomeMarkers(
+  #     #   lng = ifelse(is.null(input$long) == T, 0, input$long),
+  #     #   lat = ifelse(is.null(input$lat) == T, 0, input$lat),
+  #     #   icon = icon.home,
+  #     #   label = "Your position",
+  #     #   layerId = "home"
+  #     # ) %>%
+  # 
+  # 
+  #     addAwesomeMarkers(
+  #       lng = aligned_data$lon,
+  #       lat = aligned_data$lat,
+  #       icon = icon.users,
+  #       layerId = as.character(aligned_data$id_nr),
+  #       # popup = return_bus_stop_info(input$mymap_marker_click$id),
+  #       # label = return_bus_stop_info(input$mymap_marker_click$id)
+  #       label = aligned_data$bus_time_table
+  #       # label = aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))$busstop_name
+  #     ) #%>%
+  # 
+  #     # addAwesomeMarkers(
+  #     #   lng = tram_data$Lon,
+  #     #   lat = tram_data$Lat,
+  #     #   icon = icon.tram,
+  #     #   label = tram_labels(),
+  #     #   layerId = tram_layer_id
+  #     # ) %>%
+  #     #
+  #     # addAwesomeMarkers(
+  #     #   lng = bus_data$Lon,
+  #     #   lat = bus_data$Lat,
+  #     #   icon = icon.bus,
+  #     #   label = bus_labels(),
+  #     #   layerId = bus_layer_id
+  #     # )
+  # 
+  #   print("Sys.sleep starts working")
+  # },ignoreNULL = FALSE)
   
   
   
