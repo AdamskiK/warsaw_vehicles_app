@@ -44,12 +44,13 @@ aligned_bus_stops <- function(line_vector, busid_full){
     for(i in 1:length(line_vector)){
       
       get_vector_with_indices <- which(lapply(lapply(bus_line_mapping$busline, function(x) grep(line_vector[i],x)), length) > 0)
+      print(c("get_vector_with_indices: ", get_vector_with_indices))
       get_vec_bus_id_index <- which(lapply(lapply(bus_line_mapping$id_nr, function(x) grep(as.numeric(busid_full),x)), length) > 0)
-        
+      print(c("get_vec_bus_id_index: ", get_vec_bus_id_index))
       # print(c("get_vec_bus_id_index is", get_vec_bus_id_index))
       
       for(j in get_vector_with_indices){
-        start <- Sys.time()
+        # start <- Sys.time()
         
         df <- rbind(df, data.frame(id_nr = bus_line_mapping$id_nr[j],
                                    lat = bus_line_mapping$lat[j],
@@ -58,9 +59,14 @@ aligned_bus_stops <- function(line_vector, busid_full){
                                    busstop_name = bus_line_mapping$busstop_name[j],
 
                                    bus_time_table = if(as.character(j) == get_vec_bus_id_index){
+                                     
                                      return_bus_stop_info(as.character(bus_line_mapping$id_nr[j]))["base"][[1]]
+                                     
                                    }else{
+                                     
                                      ""
+                                     # return_bus_stop_info(as.character(bus_line_mapping$id_nr[get_vector_with_indices[1]]))["base"][[1]]
+                                     
                                    }
         ))
         
@@ -773,26 +779,32 @@ server <- shinyServer(function(input, output, session) {
   
   reactive_timetable <- reactive({
 
-    boolean_value <- 
-      is.null(input$mymap_marker_click$id) | 
-      is.null(input$bus_location_labels) & 
-      is.null(input$tram_location_labels)
+    boolean_value <- is.null(input$bus_location_labels)
+      # is.null(input$mymap_marker_click$id) | 
+      # is.null(input$tram_location_labels)
+    
+    null_clickid <- is.null(input$mymap_marker_click)
+    choose_layer_id <- ifelse(null_clickid == T, "322901", input$mymap_marker_click$id)
+    print(c("choosen layer id is: ", choose_layer_id))
     
     if(boolean_value){
 
       aligned_data <- aligned_bus_stops("174", "322901") %>%
         filter(bus_time_table != "")
+      
       bus_timetable <- return_bus_stop_info("322901")["df_final_output"][[1]]
 
     }else{
-
+  
+      print(c("reactive_timetable - line_vector: ", c(input$bus_location_labels, input$tram_location_labels)))
       aligned_data <- aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels),
-                                        input$mymap_marker_click$id)
+                                        choose_layer_id)
+      
       bus_timetable <- return_bus_stop_info(as.character(input$mymap_marker_click$id))["df_final_output"][[1]]
 
     }
 
-    print(c("aligned_data inside reactive_timetable: ", aligned_data))
+    # print(c("aligned_data inside reactive_timetable: ", aligned_data))
     return(list("aligned_data" = aligned_data,
                 "bus_timetable" = bus_timetable))
   })
@@ -800,10 +812,12 @@ server <- shinyServer(function(input, output, session) {
   # datatable(data.frame(reactive_timetable()$aligned_data$busstop_name))
   # datatable(reactive_timetable()$aligned_data$bus_time_table)
 
-  output$tableDT <- DT::renderDataTable(datatable(data.frame(reactive_timetable()$bus_timetable)),
-                                        options = list(paging=F),
-                                        rownames=F,
-                                        filter = "top")
+  output$tableDT <- DT::renderDataTable(DT::datatable(data.frame(reactive_timetable()$bus_timetable), 
+                                                      filter = "top",
+                                                      selection = 'none',
+                                                      options = list(paging = F,
+                                                                     rownames = F,
+                                                                     bFilter = 0)))
   
   
   btt_reactive_timer <- reactiveTimer(10000)              
@@ -823,32 +837,16 @@ server <- shinyServer(function(input, output, session) {
     
     print(paste0("input$mymap_marker_click$id is: ", is.null(input$mymap_marker_click$id), " of value: ", input$mymap_marker_click$id))
     
-    boolean_value <- 
-      is.null(input$mymap_marker_click$id) | 
-      is.null(input$bus_location_labels) & 
-      is.null(input$tram_location_labels)
-    
-    # ddd <- reactive_timetable()
-    
-    print(c("boolean mymap_marker_click$id is: ", is.null(input$mymap_marker_click)))
-    print(c("boolean bus_location_labels is: ", is.null(input$bus_location_labels)))
-    print(c("boolean tram_location_labels is: ", is.null(input$tram_location_labels)))
-    print(c("boolean general is: ", boolean_value))
-    # print(c("boolean reactive_timetable is null: ", is.null(ddd)))
+    # boolean_value <- 
+    #   is.null(input$mymap_marker_click$id) | 
+    #   is.null(input$bus_location_labels) & 
+    #   is.null(input$tram_location_labels)
     
     
-
-    if(boolean_value){
-
-      aligned_data <- aligned_bus_stops("174", "322901") %>% 
-        filter(bus_time_table != "")
-      
-    }else{
-
-      aligned_data <- aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels),
-                                        input$mymap_marker_click$id)
-
-    }
+    # print(c("boolean mymap_marker_click$id is: ", is.null(input$mymap_marker_click)))
+    # print(c("boolean bus_location_labels is: ", is.null(input$bus_location_labels)))
+    # print(c("boolean tram_location_labels is: ", is.null(input$tram_location_labels)))
+    # print(c("boolean general is: ", boolean_value))
     
     
     leafletProxy("mymap") %>%
@@ -867,13 +865,12 @@ server <- shinyServer(function(input, output, session) {
       ) %>%
 
       addAwesomeMarkers(
-        lng = print(reactive_timetable()$aligned_data$lon),
+        lng = reactive_timetable()$aligned_data$lon,
         lat = reactive_timetable()$aligned_data$lat,
         icon = icon.users,
         layerId = as.character(reactive_timetable()$aligned_data$id_nr),
-        label = reactive_timetable()$aligned_data$busstop_name#,
-        # popup = reactive_timetable()$aligned_data$bus_time_table
-        
+        label = reactive_timetable()$aligned_data$busstop_name
+
       ) %>%
       
       addAwesomeMarkers(
