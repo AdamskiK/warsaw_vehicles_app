@@ -228,8 +228,9 @@ return_bus_stop_info <- function(layer_id){
   print("#0#")
   print(c("layer_id is: ", layer_id))
   print(c("class of layer_id is: ", class(layer_id)))
-  bolean <-  !is.na(is.numeric(layer_id)) & !is.null(layer_id) & layer_id == ""
+  bolean <-  !is.na(is.numeric(layer_id)) & !is.null(layer_id) & length(layer_id) != 0
   print(c("bolean is: ", bolean))
+  print(c("bolean is na: ", is.na(bolean)))
   if(bolean){
     busStopId <-  substr(layer_id, 1, 4)
     busStopNr <- substr(layer_id, 5, 6)
@@ -414,7 +415,7 @@ getData <- function(){
   # with the desired levels.
   get_labels <- function(data_, numeric_type){
     
-    print(head(data_))
+    # print(head(data_))
     
     if(numeric_type){
       # uniq_first_lines <- c("all", unique(as.character(sort(as.numeric(data_)))))
@@ -450,7 +451,8 @@ getData <- function(){
               "buses_data" = buses_data,
               "tram_label_list" = tram_label_list,
               "bus_label_list" = bus_label_list,
-              "backup_tram_data" = backup_tram_data))
+              "backup_tram_data" = backup_tram_data,
+              "backup_bus_data" = backup_bus_data))
 }
 
 
@@ -541,15 +543,20 @@ server <- shinyServer(function(input, output, session) {
   reData <- eventReactive(autoInvalidate(), {
     
     data <- getData()
-    backup_tram_data <- data$backup_tram_data
-    cat(paste0("tram loc labels is: ", is.null(input$tram_location_labels), 
-            " bus location labels is null: ", is.null(input$bus_location_labels)), "\n")
     
+    backup_tram_data <- data$backup_tram_data
+    backup_bus_data <- data$backup_bus_data
+    
+    
+    random_tram_vehicle <- sample(backup_tram_data$FirstLine, 1)
+    random_bus_vehicle <- sample(backup_bus_data$Lines, 1)
+    
+
     if(is.null(input$tram_location_labels) == T & is.null(input$bus_location_labels) == T){
       
       print("enter 1")
-      trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% c("33"))
-      buses_data <- data$buses_data %>% dplyr::filter(Lines %in% c("174"))
+      trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% random_tram_vehicle)
+      buses_data <- data$buses_data %>% dplyr::filter(Lines %in% random_bus_vehicle)
       tram_label_list <- data$tram_label_list
       bus_label_list <- data$bus_label_list
       # print("exit 1")
@@ -557,7 +564,7 @@ server <- shinyServer(function(input, output, session) {
     }else if(is.null(input$tram_location_labels) == T & is.null(input$bus_location_labels) == F){
       
       # print("enter 2")
-      trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% c("33"))
+      trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% random_tram_vehicle)
       buses_data <- data$buses_data %>% dplyr::filter(Lines %in% input$bus_location_labels)
       tram_label_list <- data$tram_label_list
       bus_label_list <- data$bus_label_list
@@ -566,7 +573,7 @@ server <- shinyServer(function(input, output, session) {
       
       # print("enter 3")
       trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% input$tram_location_labels)
-      buses_data <- data$buses_data %>% dplyr::filter(Lines %in% c("174"))
+      buses_data <- data$buses_data %>% dplyr::filter(Lines %in% random_bus_vehicle)
       tram_label_list <- data$tram_label_list
       bus_label_list <- data$bus_label_list
       
