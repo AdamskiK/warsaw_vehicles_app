@@ -839,18 +839,7 @@ server <- shinyServer(function(input, output, session) {
     # print(c("after bus_layer_id creation"))
     
     print(paste0("input$mymap_marker_click$id is: ", is.null(input$mymap_marker_click$id), " of value: ", input$mymap_marker_click$id))
-    
-    # boolean_value <- 
-    #   is.null(input$mymap_marker_click$id) | 
-    #   is.null(input$bus_location_labels) & 
-    #   is.null(input$tram_location_labels)
-    
-    
-    # print(c("boolean mymap_marker_click$id is: ", is.null(input$mymap_marker_click)))
-    # print(c("boolean bus_location_labels is: ", is.null(input$bus_location_labels)))
-    # print(c("boolean tram_location_labels is: ", is.null(input$tram_location_labels)))
-    # print(c("boolean general is: ", boolean_value))
-    
+  
     
     leafletProxy("mymap") %>%
       removeMarker("home") %>%
@@ -893,64 +882,6 @@ server <- shinyServer(function(input, output, session) {
       )
     
   },ignoreNULL = FALSE)
-  
-  # observeEvent(c(input$bus_location_labels, input$tram_location_labels), {
-  # 
-  #   tram_data <- tram_points()
-  #   tram_layer_id <- create_layer_id(tram_data$Lat, "tram")
-  # 
-  #   bus_data <- bus_points()
-  #   bus_layer_id <- create_layer_id(bus_data$Lat, "bus")
-  # 
-  #   aligned_data <- aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))
-  # 
-  #   leafletProxy("mymap") %>%
-  #     # removeMarker("home") %>%
-  #     removeMarker(as.character(all_busstop_layer_ids)) %>%
-  #     # removeMarker(backup_tram_layer_id) %>%
-  #     # removeMarker(backup_bus_layer_id) %>%
-  # 
-  # 
-  #     # addAwesomeMarkers(
-  #     #   lng = ifelse(is.null(input$long) == T, 0, input$long),
-  #     #   lat = ifelse(is.null(input$lat) == T, 0, input$lat),
-  #     #   icon = icon.home,
-  #     #   label = "Your position",
-  #     #   layerId = "home"
-  #     # ) %>%
-  # 
-  # 
-  #     addAwesomeMarkers(
-  #       lng = aligned_data$lon,
-  #       lat = aligned_data$lat,
-  #       icon = icon.users,
-  #       layerId = as.character(aligned_data$id_nr),
-  #       # popup = return_bus_stop_info(input$mymap_marker_click$id),
-  #       # label = return_bus_stop_info(input$mymap_marker_click$id)
-  #       label = aligned_data$bus_time_table
-  #       # label = aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels))$busstop_name
-  #     ) #%>%
-  # 
-  #     # addAwesomeMarkers(
-  #     #   lng = tram_data$Lon,
-  #     #   lat = tram_data$Lat,
-  #     #   icon = icon.tram,
-  #     #   label = tram_labels(),
-  #     #   layerId = tram_layer_id
-  #     # ) %>%
-  #     #
-  #     # addAwesomeMarkers(
-  #     #   lng = bus_data$Lon,
-  #     #   lat = bus_data$Lat,
-  #     #   icon = icon.bus,
-  #     #   label = bus_labels(),
-  #     #   layerId = bus_layer_id
-  #     # )
-  # 
-  #   print("Sys.sleep starts working")
-  # },ignoreNULL = FALSE)
-  
-  
   
 })
 
