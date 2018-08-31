@@ -356,19 +356,19 @@ getData <- function(){
   call2 <- paste0(base_bus,"?","resource_id=",id_bus,"&","apikey=",apikey,"&type=1")
   
   
-  print("### 1 - get api###")
+  # print("### 1 - get api###")
   
   trams_data <- get_API_response(call1)
   buses_data <- get_API_response(call2)
   
   
-  print("### 2 - handling empty response ###")
+  # print("### 2 - handling empty response ###")
   
   trams_data <- handle_empty_response(trams_data, call1)
   buses_data <- handle_empty_response(buses_data, call2)
   
   
-  print("### 4 ###")
+  # print("### 4 ###")
   # the function filters out outliers
   filter_outliers <- function(data) {
     
@@ -388,22 +388,22 @@ getData <- function(){
     return(data)
   }
   
-  print("### 5 - filter outliers ###")
+  # print("### 5 - filter outliers ###")
   
   trams_data <- filter_outliers(trams_data)
   buses_data <- filter_outliers(buses_data)
   
-  print("### 6 ###")
+  # print("### 6 ###")
   
   trams_data$FirstLine <- as.character(as.numeric(trams_data$FirstLine))
   
-  print("### 7 ###")
+  # print("### 7 ###")
   
   # setting a backup for the dropdown list
   backup_tram_data <- trams_data
   backup_bus_data <- buses_data
   
-  print("### 8 ###")
+  # print("### 8 ###")
   
   # split converts the f (second) argument to factors, if it isn't already one.
   # So, if you want the order to be retained, factor the column yourself
@@ -414,33 +414,33 @@ getData <- function(){
     
     if(numeric_type){
       # uniq_first_lines <- c("all", unique(as.character(sort(as.numeric(data_)))))
-      print("### 9a ###")
+      # print("### 9a ###")
       uniq_first_lines <- c(unique(as.character(sort(as.numeric(data_)))))
     }else{
       # uniq_firstb_lines <- c("all", unique(as.character(sort(data_))))
-      print("### 9b ###")
+      # print("### 9b ###")
       uniq_first_lines <- c(unique(as.character(sort(data_))))
     }
     
-    print("### 9c ###")
+    # print("### 9c ###")
     sorted_factor <- factor(uniq_first_lines, levels=uniq_first_lines)
     label_list <- split(uniq_first_lines, sorted_factor)
-    print("### 9d ###")
+    # print("### 9d ###")
     
     return(label_list)
   }
   
-  print("### 9 ###")
+  # print("### 9 ###")
 
   tram_label_list <- get_labels(backup_tram_data$FirstLine , TRUE)
   bus_label_list <- get_labels(backup_bus_data$Lines , FALSE)
   
-  print("### 10 ###")
+  # print("### 10 ###")
   
   rownames(trams_data) <- NULL
   rownames(buses_data) <- NULL
   
-  print("### 11 ###")
+  # print("### 11 ###")
   
   return(list("trams_data" = trams_data,
               "buses_data" = buses_data,
@@ -538,6 +538,8 @@ server <- shinyServer(function(input, output, session) {
     
     data <- getData()
     backup_tram_data <- data$backup_tram_data
+    cat(paste0("tram loc labels is: ", is.null(input$tram_location_labels), 
+            " bus location labels is null: ", is.null(input$bus_location_labels)), "\n")
     
     if(is.null(input$tram_location_labels) == T & is.null(input$bus_location_labels) == T){
       
@@ -835,51 +837,60 @@ server <- shinyServer(function(input, output, session) {
     # print(c("after tram_layer_id creation"))
     
     bus_data <- bus_points()
+    # print(c("bus data within observeEvent are: ", bus_data))
     bus_layer_id <- create_layer_id(bus_data$Lat, "bus")
     # print(c("after bus_layer_id creation"))
     
-    print(paste0("input$mymap_marker_click$id is: ", is.null(input$mymap_marker_click$id), " of value: ", input$mymap_marker_click$id))
+    # print(paste0("input$mymap_marker_click$id is: ", is.null(input$mymap_marker_click$id), " of value: ", input$mymap_marker_click$id))
   
     
+    # remove necessary markers
     leafletProxy("mymap") %>%
       removeMarker("home") %>%
       removeMarker(as.character(all_busstop_layer_ids)) %>%
       removeMarker(backup_tram_layer_id) %>%
       removeMarker(backup_bus_layer_id) %>%
       
-
-      addAwesomeMarkers(
-        lng = ifelse(is.null(input$long) == T, 0, input$long),
-        lat = ifelse(is.null(input$lat) == T, 0, input$lat),
-        icon = icon.home,
-        label = "Your position",
-        layerId = "home"
-      ) %>%
-
-      addAwesomeMarkers(
-        lng = reactive_timetable()$aligned_data$lon,
-        lat = reactive_timetable()$aligned_data$lat,
-        icon = icon.users,
-        layerId = as.character(reactive_timetable()$aligned_data$id_nr),
-        label = reactive_timetable()$aligned_data$busstop_name
-
-      ) %>%
       
-      addAwesomeMarkers(
-        lng = tram_data$Lon,
-        lat = tram_data$Lat,
-        icon = icon.tram,
-        label = tram_labels(),
-        layerId = tram_layer_id
-      ) %>%
+    # update your position
+    addAwesomeMarkers(
+      lng = ifelse(is.null(input$long) == T, 0, input$long),
+      lat = ifelse(is.null(input$lat) == T, 0, input$lat),
+      icon = icon.home,
+      label = "Your position",
+      layerId = "home"
+    ) %>%
+
+    
+    # update tram or bus stop positions  
+    addAwesomeMarkers(
+      lng = reactive_timetable()$aligned_data$lon,
+      lat = reactive_timetable()$aligned_data$lat,
+      icon = icon.users,
+      layerId = as.character(reactive_timetable()$aligned_data$id_nr),
+      label = reactive_timetable()$aligned_data$busstop_name
+
+    ) %>%
+    
       
-      addAwesomeMarkers(
-        lng = bus_data$Lon,
-        lat = bus_data$Lat,
-        icon = icon.bus,
-        label = bus_labels(),
-        layerId = bus_layer_id
-      )
+    # update tram positions
+    addAwesomeMarkers(
+      lng = tram_data$Lon,
+      lat = tram_data$Lat,
+      icon = icon.tram,
+      label = tram_labels(),
+      layerId = tram_layer_id
+    ) %>%
+    
+      
+    # update bus postions
+    addAwesomeMarkers(
+      lng = bus_data$Lon,
+      lat = bus_data$Lat,
+      icon = icon.bus,
+      label = bus_labels(),
+      layerId = bus_layer_id
+    )
     
   },ignoreNULL = FALSE)
   
