@@ -44,9 +44,9 @@ aligned_bus_stops <- function(line_vector, busid_full){
     for(i in 1:length(line_vector)){
       
       get_vector_with_indices <- which(lapply(lapply(bus_line_mapping$busline, function(x) grep(line_vector[i],x)), length) > 0)
-      print(c("get_vector_with_indices: ", get_vector_with_indices))
+      # print(c("get_vector_with_indices: ", get_vector_with_indices))
       get_vec_bus_id_index <- which(lapply(lapply(bus_line_mapping$id_nr, function(x) grep(as.numeric(busid_full),x)), length) > 0)
-      print(c("get_vec_bus_id_index: ", get_vec_bus_id_index))
+      # print(c("get_vec_bus_id_index: ", get_vec_bus_id_index))
       # print(c("get_vec_bus_id_index is", get_vec_bus_id_index))
       
       for(j in get_vector_with_indices){
@@ -410,27 +410,30 @@ getData <- function(){
   # with the desired levels.
   get_labels <- function(data_, numeric_type){
     
+    print(head(data_))
+    
     if(numeric_type){
       # uniq_first_lines <- c("all", unique(as.character(sort(as.numeric(data_)))))
       print("### 9a ###")
       uniq_first_lines <- c(unique(as.character(sort(as.numeric(data_)))))
     }else{
       # uniq_firstb_lines <- c("all", unique(as.character(sort(data_))))
-      print("### 9 ###")
+      print("### 9b ###")
       uniq_first_lines <- c(unique(as.character(sort(data_))))
     }
     
     print("### 9c ###")
     sorted_factor <- factor(uniq_first_lines, levels=uniq_first_lines)
     label_list <- split(uniq_first_lines, sorted_factor)
+    print("### 9d ###")
     
     return(label_list)
   }
   
   print("### 9 ###")
 
-  tram_label_list <- get_labels(backup_tram_data[["FirstLine"]], TRUE)
-  bus_label_list <- get_labels(backup_bus_data[["Lines"]], FALSE)
+  tram_label_list <- get_labels(backup_tram_data$FirstLine , TRUE)
+  bus_label_list <- get_labels(backup_bus_data$Lines , FALSE)
   
   print("### 10 ###")
   
