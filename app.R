@@ -46,7 +46,6 @@ aligned_bus_stops <- function(line_vector, busid_full){
       get_vector_with_indices <- which(lapply(lapply(bus_line_mapping$busline, function(x) grep(line_vector[i],x)), length) > 0)
       # print(c("get_vector_with_indices: ", get_vector_with_indices))
       get_vec_bus_id_index <- which(lapply(lapply(bus_line_mapping$id_nr, function(x) grep(as.numeric(busid_full),x)), length) > 0)
-      # print(c("get_vec_bus_id_index: ", get_vec_bus_id_index))
       # print(c("get_vec_bus_id_index is", get_vec_bus_id_index))
       
       for(j in get_vector_with_indices){
@@ -227,16 +226,19 @@ return_bus_stop_info <- function(layer_id){
   # layer_id <- "322901"
   
   print("#0#")
-  bolean <-  !is.na(as.numeric(layer_id)) && !is.null(layer_id)
+  print(c("layer_id is: ", layer_id))
+  print(c("class of layer_id is: ", class(layer_id)))
+  bolean <-  !is.na(is.numeric(layer_id)) & !is.null(layer_id) & layer_id == ""
+  print(c("bolean is: ", bolean))
   if(bolean){
     busStopId <-  substr(layer_id, 1, 4)
     busStopNr <- substr(layer_id, 5, 6)
     
-    # print(c(busStopId, busStopNr))
+    print(c(busStopId, busStopNr))
     
-    # print("#1 - getting busstop lines #")
+    print("#1 - getting busstop lines #")
     get_list <- get_bus_stop_lines(busStopId, busStopNr)
-    # print(c("get list consists of :", get_list))
+    print(c("get list consists of :", get_list))
     
     if(length(get_list) == 0){
 
@@ -247,9 +249,9 @@ return_bus_stop_info <- function(layer_id){
       
     
     vehicle_list <- sapply(get_list$values, function(x) x$value)
-    # print(c("vehicle_list is: ", vehicle_list))
+    print(c("vehicle_list is: ", vehicle_list))
     
-    # print("#2 - enter loop#")
+    print("#2 - enter loop#")
     bt_df <- data.frame()
     for(i in 1:length(vehicle_list)){
       
@@ -268,13 +270,14 @@ return_bus_stop_info <- function(layer_id){
     if(class(bt_df) == "list"){
       
       base <-  ""
+      df_final_output <- ""
     
     }else{
       
-      # print("#6#")
+      print("#6#")
       df_time <- sapply(bt_df$values, function(x) x$value)[6,]
       df_bus <- bt_df$bus
-      # print("#6a#")
+      print("#6a#")
       # let's work with df
       df_time <- data.frame(do.call(c, lapply(df_time, function(x) as.POSIXct(x, format = "%H:%M:%S"))))
       # print("#6b#")
@@ -323,6 +326,7 @@ return_bus_stop_info <- function(layer_id){
     
     # if the layer_id is empty then return an empty sting 
     base <- ""
+    df_final_output <- ""
     
   }
   
@@ -801,8 +805,8 @@ server <- shinyServer(function(input, output, session) {
 
     }else{
   
-      print(c("reactive_timetable - line_vector: ", c(input$bus_location_labels, input$tram_location_labels)))
-      aligned_data <- aligned_bus_stops(c(input$bus_location_labels, input$tram_location_labels),
+      print(c("reactive_timetable - line_vector: ", c(input$bus_location_labels)))
+      aligned_data <- aligned_bus_stops(c(input$bus_location_labels),
                                         choose_layer_id)
       
       bus_timetable <- return_bus_stop_info(as.character(input$mymap_marker_click$id))["df_final_output"][[1]]
@@ -868,8 +872,7 @@ server <- shinyServer(function(input, output, session) {
       lat = reactive_timetable()$aligned_data$lat,
       icon = icon.users,
       layerId = as.character(reactive_timetable()$aligned_data$id_nr),
-      label = reactive_timetable()$aligned_data$busstop_name
-
+      label = reactive_timetable()$aligned_data$busstop_names
     ) %>%
     
       
