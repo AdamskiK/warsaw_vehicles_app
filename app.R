@@ -527,9 +527,9 @@ server <- shinyServer(function(input, output, session) {
   
   
   tram_points <- reactive({
-    
+    print(c("before printing tram points"))
     tram_points <- cbind(reData()[["trams_data"]]["Lon"], reData()[["trams_data"]]["Lat"])
-    
+    print(tram_points)
     return(tram_points)
   })
   

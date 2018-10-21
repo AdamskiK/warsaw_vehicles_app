@@ -19,5 +19,5 @@
 warsaw-public-transport.Rproj
 *.csv
 /api_calls.txt
-/test-app.R
+/test_app.R
 /testing_reactivity.R
