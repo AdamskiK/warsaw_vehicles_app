@@ -80,7 +80,7 @@ aligned_bus_stops <- function(line_vector, busid_full){
   
 
 # API KEY
-apikey <- "2b5e76a6-5515-4eb8-b173-130a648f210a"
+apikey <- ""
 
 ###1### bus stop value
 id_bus_stop_value <- "b27f4c17-5c50-4a5b-89dd-236b282bc499"
