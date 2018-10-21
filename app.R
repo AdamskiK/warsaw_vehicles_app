@@ -1,5 +1,3 @@
-# setwd("C:/Users/Adam/Desktop/Shiny/warsaw-public-transport")
-
 # set a local language as polish
 Sys.setlocale("LC_CTYPE", "polish")
 
@@ -14,7 +12,7 @@ library("DT")
 
 
 # read bus stop nr and coordinates
-bus_stop_df_full <- read.csv("2018_08_17_23_45_08_extracted_bus_stops.csv", stringsAsFactors = F)
+bus_stop_df_full <- read.csv("fully_extracted_bus_stops.csv", stringsAsFactors = F)
 bus_stop_df <- bus_stop_df_full[sample(nrow(bus_stop_df_full), 50), ]
 
 
@@ -44,9 +42,8 @@ aligned_bus_stops <- function(line_vector, busid_full){
     for(i in 1:length(line_vector)){
       
       get_vector_with_indices <- which(lapply(lapply(bus_line_mapping$busline, function(x) grep(line_vector[i],x)), length) > 0)
-      # print(c("get_vector_with_indices: ", get_vector_with_indices))
+
       get_vec_bus_id_index <- which(lapply(lapply(bus_line_mapping$id_nr, function(x) grep(as.numeric(busid_full),x)), length) > 0)
-      # print(c("get_vec_bus_id_index is", get_vec_bus_id_index))
       
       for(j in get_vector_with_indices){
         # start <- Sys.time()
@@ -88,38 +85,12 @@ apikey <- "2b5e76a6-5515-4eb8-b173-130a648f210a"
 ###1### bus stop value
 id_bus_stop_value <- "b27f4c17-5c50-4a5b-89dd-236b282bc499"
 
-
-# debug
-# https://api.um.warszawa.pl/api/action/dbtimetable_get/?
-# id=b27f4c17-5c50-4a5b-89dd-236b282bc499&
-# name=Madali%C5%84skiego&
-# apikey=2b5e76a6-5515-4eb8-b173-130a648f210a
-
-
 ###2### available lines at the given bus stop
 id_bus_lines <- "88cd555f-6f31-43ca-9de4-66c479ad5942"
-
-
-# debug
-# "https://api.um.warszawa.pl/api/action/dbtimetable_get?
-# id=88cd555f-6f31-43ca-9de4-66c479ad5942&
-# busstopId=3229&
-# busstopNr=01&
-# apikey=2b5e76a6-5515-4eb8-b173-130a648f210a"
-
 
 ###3### bus time table
 bus_info_base <- "https://api.um.warszawa.pl/api/action/dbtimetable_get"
 id_bus_time_table <- "e923fa0e-d96c-43f9-ae6e-60518c9f3238"
-
-
-# debug
-# https://api.um.warszawa.pl/api/action/dbtimetable_get/?
-# id=e923fa0e-d96c-43f9-ae6e-60518c9f3238&busstopId=7009&
-# busstopNr=01&
-# line=523&
-# apikey=2b5e76a6-5515-4eb8-b173-130a648f210a
-
 
 # API call function
 get_API_response <- function(call){
@@ -168,10 +139,6 @@ convert_polish_letters <- function(name) {
   return(name)
 }
 
-# debug convert_polish_letters
-# convert_polish_letters("Madalińskiego")
-
-
 get_bus_stop_id <- function(name){
   
   call3 <- paste0(bus_info_base,
@@ -200,10 +167,7 @@ get_bus_stop_lines <- function(busstopId, busstopNr){
   return(bus_stop_lines)
 }
 
-# get all the vehicle numbers for a given bus stop
-# sapply(get_bus_stop_lines(get_bus_stop_id("Madalinskiego")[[1]][[1]]$value[1], "01")[1]$values, function(x) x$value)
-
-
+# get all vehicle info for a given bus stop
 get_bus_timetable <- function(busstopId, busstopNr,line){
   
   call5 <- paste0(bus_info_base,
@@ -225,12 +189,8 @@ return_bus_stop_info <- function(layer_id){
   # debug
   # layer_id <- "322901"
   
-  print("#0#")
-  print(c("layer_id is: ", layer_id))
-  print(c("class of layer_id is: ", class(layer_id)))
   bolean <-  !is.na(is.numeric(layer_id)) & !is.null(layer_id) & length(layer_id) != 0
-  print(c("bolean is: ", bolean))
-  print(c("bolean is na: ", is.na(bolean)))
+
   if(bolean){
     busStopId <-  substr(layer_id, 1, 4)
     busStopNr <- substr(layer_id, 5, 6)
@@ -243,24 +203,19 @@ return_bus_stop_info <- function(layer_id){
     
     if(length(get_list) == 0){
 
-      print("#1a#")
+      print("#API Error#")
       base <- "API Error"
 
     }else{
       
     
     vehicle_list <- sapply(get_list$values, function(x) x$value)
-    print(c("vehicle_list is: ", vehicle_list))
     
-    print("#2 - enter loop#")
     bt_df <- data.frame()
     for(i in 1:length(vehicle_list)){
       
       get_bus_tt <- get_bus_timetable(busStopId, busStopNr, vehicle_list[i])[[1]]
       if(class(get_bus_tt) == "list"){next}
-      
-      # print(c("looped nr: ", i))
-      # print(c("vehicle is: ", vehicle_list[i]))
       
       bt_df <- bt_df %>% 
         bind_rows(get_bus_tt %>% mutate(bus = vehicle_list[i]))
@@ -278,16 +233,13 @@ return_bus_stop_info <- function(layer_id){
       print("#6#")
       df_time <- sapply(bt_df$values, function(x) x$value)[6,]
       df_bus <- bt_df$bus
-      print("#6a#")
+      
       # let's work with df
       df_time <- data.frame(do.call(c, lapply(df_time, function(x) as.POSIXct(x, format = "%H:%M:%S"))))
-      # print("#6b#")
       df_bus <- bt_df$bus
-      # print("#6c#")
       df_final <- cbind(df_bus, df_time)
-      # print("#6d#")
       names(df_final) <- c("busNr", "time")
-      # print("#6e#")
+
       df_final_output <- df_final %>%
         filter(time > Sys.time()) %>%
         group_by(busNr) %>%
@@ -298,28 +250,19 @@ return_bus_stop_info <- function(layer_id){
         mutate(time_left = round(time - Sys.time())) %>%
         select(busNr, time_left)
       
-      
-      # print("#7#")
       # a new way of getting proper print output
       df_final_output <- data.frame(df_final_output)
-      # print(df_final_output)
-      # print("#9#")
       aa <- apply(df_final_output[ , c("busNr", "time_left") ] , 1 , paste , collapse = "-" )
-      # print("#10#")
       gdb <- gsub("-", " - ", gsub(" ", "", aa))
       
-      # print("#11#")
       base <- paste0(gdb[1],"</strong>", "<br/>")
       for(i in 2:length(gdb)){
         base <- paste0(base, "<strong>", gdb[i],"</strong>", "<br/>")
       }
-      # print("#12#")
+
       base <- paste0("<strong>", base)
-      # print("#13#")
       base <- base %>% lapply(htmltools::HTML)
       base <- base[[1]]
-      # print("#14#")
-      
     }
     }
     
@@ -332,15 +275,11 @@ return_bus_stop_info <- function(layer_id){
   }
   
   # testing purpose
-
-  # print("returning bus stop info")
   print("#15 - return timetable#")
-  
   # print(c("one loop takes: ", (Sys.time() - start)/i, " per one bus time table"))
 
   return(list("base" = base,
               "df_final_output" = df_final_output))
-  # return(base)
 }
 
 
@@ -386,66 +325,47 @@ getData <- function(){
                Lon < 21.143558)
     }
     else{
-      # print(c("#2# class of data is: ", class(data)))
+      # debug
       # print(c("#2# print data: ", data))
     }
 
     return(data)
   }
   
-  # print("### 5 - filter outliers ###")
-  
   trams_data <- filter_outliers(trams_data)
   buses_data <- filter_outliers(buses_data)
   
-  # print("### 6 ###")
-  
   trams_data$FirstLine <- as.character(as.numeric(trams_data$FirstLine))
-  
-  # print("### 7 ###")
   
   # setting a backup for the dropdown list
   backup_tram_data <- trams_data
   backup_bus_data <- buses_data
-  
-  # print("### 8 ###")
   
   # split converts the f (second) argument to factors, if it isn't already one.
   # So, if you want the order to be retained, factor the column yourself
   # with the desired levels.
   get_labels <- function(data_, numeric_type){
     
-    # print(head(data_))
-    
     if(numeric_type){
-      # uniq_first_lines <- c("all", unique(as.character(sort(as.numeric(data_)))))
-      # print("### 9a ###")
+      
       uniq_first_lines <- c(unique(as.character(sort(as.numeric(data_)))))
+      
     }else{
-      # uniq_firstb_lines <- c("all", unique(as.character(sort(data_))))
-      # print("### 9b ###")
+      
       uniq_first_lines <- c(unique(as.character(sort(data_))))
     }
     
-    # print("### 9c ###")
     sorted_factor <- factor(uniq_first_lines, levels=uniq_first_lines)
     label_list <- split(uniq_first_lines, sorted_factor)
-    # print("### 9d ###")
     
     return(label_list)
   }
-  
-  # print("### 9 ###")
 
   tram_label_list <- get_labels(backup_tram_data$FirstLine , TRUE)
   bus_label_list <- get_labels(backup_bus_data$Lines , FALSE)
   
-  # print("### 10 ###")
-  
   rownames(trams_data) <- NULL
   rownames(buses_data) <- NULL
-  
-  # print("### 11 ###")
   
   return(list("trams_data" = trams_data,
               "buses_data" = buses_data,
@@ -512,7 +432,6 @@ ui <- dashboardPage(
 
 server <- shinyServer(function(input, output, session) {
   
-  
   # renderUI - showing the drop-down list
   output$tram_lines <- renderUI({
     
@@ -554,16 +473,14 @@ server <- shinyServer(function(input, output, session) {
 
     if(is.null(input$tram_location_labels) == T & is.null(input$bus_location_labels) == T){
       
-      print("enter 1")
+      print("taking random tram and bus stop info")
       trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% random_tram_vehicle)
       buses_data <- data$buses_data %>% dplyr::filter(Lines %in% random_bus_vehicle)
       tram_label_list <- data$tram_label_list
       bus_label_list <- data$bus_label_list
-      # print("exit 1")
       
     }else if(is.null(input$tram_location_labels) == T & is.null(input$bus_location_labels) == F){
       
-      # print("enter 2")
       trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% random_tram_vehicle)
       buses_data <- data$buses_data %>% dplyr::filter(Lines %in% input$bus_location_labels)
       tram_label_list <- data$tram_label_list
@@ -571,7 +488,6 @@ server <- shinyServer(function(input, output, session) {
       
     }else if(is.null(input$tram_location_labels) == F & is.null(input$bus_location_labels) == T){
       
-      # print("enter 3")
       trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% input$tram_location_labels)
       buses_data <- data$buses_data %>% dplyr::filter(Lines %in% random_bus_vehicle)
       tram_label_list <- data$tram_label_list
@@ -579,7 +495,6 @@ server <- shinyServer(function(input, output, session) {
       
     }else{
       
-      # print("enter 4")
       trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% input$tram_location_labels)
       buses_data <- data$buses_data %>% dplyr::filter(Lines %in% input$bus_location_labels)
       tram_label_list <- data$tram_label_list
@@ -709,18 +624,9 @@ server <- shinyServer(function(input, output, session) {
       
       fitBounds(input$long-0.030, input$lat-0.030, input$long+0.030, input$lat+0.030) #%>%
       
-      # addAwesomeMarkers(
-      #   lng = bus_stop_df$lon,
-      #   lat = bus_stop_df$lat,
-      #   icon = icon.users,
-      #   layerId = as.character(bus_stop_df$id_nr),
-      #   label = bus_stop_df$busstop_name
-      # )
-      
     return(leaflet)
   })
   
-
   # a function which creates layer_id's for a given dataset and a layer_name
   create_layer_id <- function(data, layer_name){
     
@@ -740,21 +646,21 @@ server <- shinyServer(function(input, output, session) {
     return(empty_string)
   }
   
-  # create a backup_layer_id dataset with purpose of remobing existing layer_id's
+  # create a backup_layer_id dataset with purpose of removing the existing layer_id's
   data <- rep(1, 500)
   backup_tram_layer_id <- create_layer_id(data, "tram")
   backup_bus_layer_id <- create_layer_id(data, "bus")
   
   
-  
-  # in purpose of managing tram and bus locations
+  # the purpose of managing tram and bus locations
   observeEvent(autoInvalidate(), {
     
     
     print(c("enter observeEvent#1a"))
     tram_data <- tram_points()
-    # print(c("tram_data are: ", tram_data))
+    print(c("tram_data are: ", tram_data))
     tram_layer_id <- create_layer_id(tram_data$Lat, "tram")
+    print(c("after showing tram data for Lat"))
     
     
     print(c("enter observeEvent#1b"))
@@ -765,6 +671,7 @@ server <- shinyServer(function(input, output, session) {
     leafletProxy("mymap") %>%
       removeMarker(backup_tram_layer_id) %>%
       removeMarker(backup_bus_layer_id) %>%
+      #debug
       # clearMarkers() %>% # remove all markers with not defined layer_id's
       
       addAwesomeMarkers(
@@ -789,15 +696,10 @@ server <- shinyServer(function(input, output, session) {
   # get all bus stop IDs
   all_busstop_layer_ids <- bus_stop_df_full$id_nr
                 
-  
-  
-  
-  
+
   reactive_timetable <- reactive({
 
     boolean_value <- is.null(input$bus_location_labels)
-      # is.null(input$mymap_marker_click$id) | 
-      # is.null(input$tram_location_labels)
     
     null_clickid <- is.null(input$mymap_marker_click)
     choose_layer_id <- ifelse(null_clickid == T, "322901", input$mymap_marker_click$id)
@@ -820,13 +722,9 @@ server <- shinyServer(function(input, output, session) {
 
     }
 
-    # print(c("aligned_data inside reactive_timetable: ", aligned_data))
     return(list("aligned_data" = aligned_data,
                 "bus_timetable" = bus_timetable))
   })
-  
-  # datatable(data.frame(reactive_timetable()$aligned_data$busstop_name))
-  # datatable(reactive_timetable()$aligned_data$bus_time_table)
 
   output$tableDT <- DT::renderDataTable(DT::datatable(data.frame(reactive_timetable()$bus_timetable), 
                                                       filter = "top",
@@ -836,24 +734,18 @@ server <- shinyServer(function(input, output, session) {
                                                                      bFilter = 0)))
   
   
-  btt_reactive_timer <- reactiveTimer(10000)              
-                
   observeEvent(c(input$bus_location_labels, input$tram_location_labels), {
     
     print(c("enter observeEvent#2"))
-    # print(c("boolean is: ", c(input$bus_location_labels & input$tram_location_labels | input$mymap_marker_click)))
     
     tram_data <- tram_points()
     tram_layer_id <- create_layer_id(tram_data$Lat, "tram")
-    # print(c("after tram_layer_id creation"))
+    print(c("after tram_layer_id creation"))
     
     bus_data <- bus_points()
-    # print(c("bus data within observeEvent are: ", bus_data))
+
     bus_layer_id <- create_layer_id(bus_data$Lat, "bus")
-    # print(c("after bus_layer_id creation"))
-    
-    # print(paste0("input$mymap_marker_click$id is: ", is.null(input$mymap_marker_click$id), " of value: ", input$mymap_marker_click$id))
-  
+    print(c("after bus_layer_id creation"))
     
     # remove necessary markers
     leafletProxy("mymap") %>%
