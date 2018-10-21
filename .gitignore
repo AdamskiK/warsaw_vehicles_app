@@ -11,9 +11,7 @@
 /all_busstop_ids.csv
 /RA180815.TXT
 /3229_example_schedule.txt
-/extracted_bus_stops.csv
 /map_bus_to_busids.R
-/mapped_bus_lines.csv
 /mapped_tibble.csv
 /3229_example_from_bus_schedule_ztm.txt
 /bus_mapping.csv
@@ -21,3 +19,5 @@
 warsaw-public-transport.Rproj
 *.csv
 /api_calls.txt
+/test-app.R
+/testing_reactivity.R
