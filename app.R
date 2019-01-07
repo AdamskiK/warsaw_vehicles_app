@@ -12,12 +12,12 @@ library("DT")
 
 
 # read bus stop nr and coordinates
-bus_stop_df_full <- read.csv("fully_extracted_bus_stops.csv", stringsAsFactors = F)
+bus_stop_df_full <- read.csv("www/fully_extracted_bus_stops.csv", stringsAsFactors = F)
 bus_stop_df <- bus_stop_df_full[sample(nrow(bus_stop_df_full), 50), ]
 
 
 # read mapped bus lines to bus ids
-bus_line_mapping <- read.csv("mapped_bus_lines.csv", stringsAsFactors = F)
+bus_line_mapping <- read.csv("www/mapped_bus_lines.csv", stringsAsFactors = F)
 bus_line_mapping
 
 # add bus stop names to the mapped bus lines
@@ -80,7 +80,7 @@ aligned_bus_stops <- function(line_vector, busid_full){
   
 
 # API KEY
-apikey <- ""
+apikey <- "2b5e76a6-5515-4eb8-b173-130a648f210a"
 
 ###1### bus stop value
 id_bus_stop_value <- "b27f4c17-5c50-4a5b-89dd-236b282bc499"
@@ -310,6 +310,7 @@ getData <- function(){
   
   trams_data <- handle_empty_response(trams_data, call1)
   buses_data <- handle_empty_response(buses_data, call2)
+  print(trams_data)
   
   
   # print("### 4 ###")
@@ -378,7 +379,7 @@ getData <- function(){
 
 ui <- dashboardPage(
   dashboardHeader(title  = "Warsaw Public Transport", titleWidth = "270px"),
-  dashboardSidebar(width = "270px", 
+  dashboardSidebar(width = "270px",
     
     div(class="outer", h3("Controls")),
     textOutput("tram_location_labels"),
@@ -528,6 +529,9 @@ server <- shinyServer(function(input, output, session) {
   
   tram_points <- reactive({
     print(c("before printing tram points"))
+    print(reData())
+    # stop("stop")
+    print("#222")
     tram_points <- cbind(reData()[["trams_data"]]["Lon"], reData()[["trams_data"]]["Lat"])
     print(tram_points)
     return(tram_points)
@@ -611,20 +615,54 @@ server <- shinyServer(function(input, output, session) {
   icon.users <- makeAwesomeIcon(icon = 'users', library = "fa", markerColor = "beige")
   
   
-  output$mymap <- renderLeaflet({
-    url_map <- a("OpenStreetMap", href="https://www.openstreetmap.org/copyright")
-    url_my_github <- a("Kamil Adamski", href="https://github.com/AdamskiK")
-    url_contrib <- a("Miasto Stoleczne Warszawa", href="https://api.um.warszawa.pl/")
-    leaflet <- leaflet() %>%
+  # output$mymap <- renderLeaflet({
+  #   url_map <- a("OpenStreetMap", href="https://www.openstreetmap.org/copyright")
+  #   url_my_github <- a("Kamil Adamski", href="https://github.com/AdamskiK")
+  #   url_contrib <- a("Miasto Stoleczne Warszawa", href="https://api.um.warszawa.pl/")
+  #   leaflet <- leaflet() %>%
+  #     
+  #     # addTiles() %>%
+  #     # addProviderTiles(providers$OpenStreetMap, 
+  #     #                  options = providerTileOptions(attribution = 
+  #     #                                                  paste("(c) 2018 ",
+  #     #                                                        url_map, ", ", 
+  #     #                                                        url_my_github, ", ", 
+  #     #                                                        url_contrib, 
+  #     #                                                        sep=""))) %>%
+  #     # addTiles(attribution =
+  #                # paste("(c) 2018 ",url_map, ", ", url_my_github, ", ", url_contrib, sep="")) #%>%
+  #     
+  #     # fitBounds(input$long-0.030, input$lat-0.030, input$long+0.030, input$lat+0.030) #%>%
+  #   
+  #   addTiles(urlTemplate = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', 
+  #            attribution = '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>')
+  #   
+  #     
+  #   return(leaflet)
+  
+    output$mymap <- renderLeaflet({
+      url_map <- a("OpenStreetMap", href="https://www.openstreetmap.org/copyright")
+      url_my_github <- a("Kamil Adamski", href="https://github.com/AdamskiK")
+      url_contrib <- a("Miasto Stoleczne Warszawa", href="https://api.um.warszawa.pl/")
+      leaflet <- leaflet() %>%
+        addProviderTiles(providers$OpenStreetMap) %>%
+        addProviderTiles(providers$OpenStreetMap,
+                         options = providerTileOptions(attribution =
+                                                         paste("(c) 2018 ",
+                                                               url_map, ", ",
+                                                               url_my_github, ", ",
+                                                               url_contrib,
+                                                               sep=""))) %>%
+        
+        
+        addTiles(urlTemplate = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                 attribution = '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>') %>%
+        fitBounds(20.866590, 52.140083, 21.143558, 52.346209)
       
-      addTiles() %>%
+      # fitBounds(input$long-0.030, input$lat-0.030, input$long+0.030, input$lat+0.030)
       
-      addTiles(attribution =
-                 paste("(c) 2018 ",url_map, ", ", url_my_github, ", ", url_contrib, sep="")) %>%
-      
-      fitBounds(input$long-0.030, input$lat-0.030, input$long+0.030, input$lat+0.030) #%>%
-      
-    return(leaflet)
+      return(leaflet)
+    
   })
   
   # a function which creates layer_id's for a given dataset and a layer_name
@@ -669,6 +707,7 @@ server <- shinyServer(function(input, output, session) {
     
     
     leafletProxy("mymap") %>%
+      # addProviderTiles(providers$OpenTopoMap) %>%
       removeMarker(backup_tram_layer_id) %>%
       removeMarker(backup_bus_layer_id) %>%
       #debug
@@ -707,7 +746,10 @@ server <- shinyServer(function(input, output, session) {
     
     if(boolean_value){
 
-      aligned_data <- aligned_bus_stops("174", "322901") %>%
+      # aligned_data <- aligned_bus_stops("174", "322901") %>%
+      #   filter(bus_time_table != "")
+      
+      aligned_data <- aligned_bus_stops("N36", "322901") %>%
         filter(bus_time_table != "")
       
       bus_timetable <- return_bus_stop_info("322901")["df_final_output"][[1]]
@@ -750,6 +792,7 @@ server <- shinyServer(function(input, output, session) {
     # remove necessary markers
     leafletProxy("mymap") %>%
       removeMarker("home") %>%
+      
       removeMarker(as.character(all_busstop_layer_ids)) %>%
       removeMarker(backup_tram_layer_id) %>%
       removeMarker(backup_bus_layer_id) %>%
