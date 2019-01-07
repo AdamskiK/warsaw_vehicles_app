@@ -615,54 +615,29 @@ server <- shinyServer(function(input, output, session) {
   icon.users <- makeAwesomeIcon(icon = 'users', library = "fa", markerColor = "beige")
   
   
-  # output$mymap <- renderLeaflet({
-  #   url_map <- a("OpenStreetMap", href="https://www.openstreetmap.org/copyright")
-  #   url_my_github <- a("Kamil Adamski", href="https://github.com/AdamskiK")
-  #   url_contrib <- a("Miasto Stoleczne Warszawa", href="https://api.um.warszawa.pl/")
-  #   leaflet <- leaflet() %>%
-  #     
-  #     # addTiles() %>%
-  #     # addProviderTiles(providers$OpenStreetMap, 
-  #     #                  options = providerTileOptions(attribution = 
-  #     #                                                  paste("(c) 2018 ",
-  #     #                                                        url_map, ", ", 
-  #     #                                                        url_my_github, ", ", 
-  #     #                                                        url_contrib, 
-  #     #                                                        sep=""))) %>%
-  #     # addTiles(attribution =
-  #                # paste("(c) 2018 ",url_map, ", ", url_my_github, ", ", url_contrib, sep="")) #%>%
-  #     
-  #     # fitBounds(input$long-0.030, input$lat-0.030, input$long+0.030, input$lat+0.030) #%>%
-  #   
-  #   addTiles(urlTemplate = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', 
-  #            attribution = '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>')
-  #   
-  #     
-  #   return(leaflet)
-  
-    output$mymap <- renderLeaflet({
-      url_map <- a("OpenStreetMap", href="https://www.openstreetmap.org/copyright")
-      url_my_github <- a("Kamil Adamski", href="https://github.com/AdamskiK")
-      url_contrib <- a("Miasto Stoleczne Warszawa", href="https://api.um.warszawa.pl/")
-      leaflet <- leaflet() %>%
-        addProviderTiles(providers$OpenStreetMap) %>%
-        addProviderTiles(providers$OpenStreetMap,
-                         options = providerTileOptions(attribution =
-                                                         paste("(c) 2018 ",
-                                                               url_map, ", ",
-                                                               url_my_github, ", ",
-                                                               url_contrib,
-                                                               sep=""))) %>%
-        
-        
-        addTiles(urlTemplate = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                 attribution = '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>') %>%
-        fitBounds(20.866590, 52.140083, 21.143558, 52.346209)
+  output$mymap <- renderLeaflet({
+    url_map <- a("OpenStreetMap", href="https://www.openstreetmap.org/copyright")
+    url_my_github <- a("Kamil Adamski", href="https://github.com/AdamskiK")
+    url_contrib <- a("Miasto Stoleczne Warszawa", href="https://api.um.warszawa.pl/")
+    leaflet <- leaflet() %>%
+      addProviderTiles(providers$OpenStreetMap) %>%
+      addProviderTiles(providers$OpenStreetMap,
+                       options = providerTileOptions(attribution =
+                                                       paste("(c) 2018 ",
+                                                             url_map, ", ",
+                                                             url_my_github, ", ",
+                                                             url_contrib,
+                                                             sep=""))) %>%
       
-      # fitBounds(input$long-0.030, input$lat-0.030, input$long+0.030, input$lat+0.030)
       
-      return(leaflet)
+      addTiles(urlTemplate = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+               attribution = '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>') %>%
+      fitBounds(20.866590, 52.140083, 21.143558, 52.346209)
     
+    # fitBounds(input$long-0.030, input$lat-0.030, input$long+0.030, input$lat+0.030)
+    
+    return(leaflet)
+  
   })
   
   # a function which creates layer_id's for a given dataset and a layer_name
