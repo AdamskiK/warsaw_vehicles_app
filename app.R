@@ -10,6 +10,8 @@ library("shinydashboard")
 library("readtext")
 library("DT")
 
+source("credentials.R")
+
 
 # read bus stop nr and coordinates
 bus_stop_df_full <- read.csv("www/fully_extracted_bus_stops.csv", stringsAsFactors = F)
@@ -66,8 +68,6 @@ aligned_bus_stops <- function(line_vector, busid_full){
                                    }
         ))
         
-        # print(c("one loop takes: ", Sys.time() - start, " per one bus time table"))
-        # print(c("till now it takes: ", Sys.time() - start0))
       }
     }
     
@@ -78,9 +78,6 @@ aligned_bus_stops <- function(line_vector, busid_full){
   return(df)
 }
   
-
-# API KEY
-apikey <- "2b5e76a6-5515-4eb8-b173-130a648f210a"
 
 ###1### bus stop value
 id_bus_stop_value <- "b27f4c17-5c50-4a5b-89dd-236b282bc499"
@@ -195,15 +192,15 @@ return_bus_stop_info <- function(layer_id){
     busStopId <-  substr(layer_id, 1, 4)
     busStopNr <- substr(layer_id, 5, 6)
     
-    print(c(busStopId, busStopNr))
+    # print(c(busStopId, busStopNr))
     
-    print("#1 - getting busstop lines #")
+    # print("#1 - getting busstop lines #")
     get_list <- get_bus_stop_lines(busStopId, busStopNr)
-    print(c("get list consists of :", get_list))
+    # print(c("get list consists of :", get_list))
     
     if(length(get_list) == 0){
 
-      print("#API Error#")
+      # print("#API Error#")
       base <- "API Error"
 
     }else{
@@ -230,7 +227,7 @@ return_bus_stop_info <- function(layer_id){
     
     }else{
       
-      print("#6#")
+      # print("#6#")
       df_time <- sapply(bt_df$values, function(x) x$value)[6,]
       df_bus <- bt_df$bus
       
@@ -275,7 +272,7 @@ return_bus_stop_info <- function(layer_id){
   }
   
   # testing purpose
-  print("#15 - return timetable#")
+  # print("#15 - return timetable#")
   # print(c("one loop takes: ", (Sys.time() - start)/i, " per one bus time table"))
 
   return(list("base" = base,
@@ -295,7 +292,7 @@ getData <- function(){
   id_bus <- "f2e5503e-927d-4ad3-9500-4ab9e55deb59"
   
   # API CALLS
-  call1 <- paste0(base_tram,"?","id=",id_tram,"&","apikey=",apikey)
+  call1 <- paste0(base_bus,"?","resource_id=",id_bus,"&","apikey=",apikey,"&type=2")
   
   call2 <- paste0(base_bus,"?","resource_id=",id_bus,"&","apikey=",apikey,"&type=1")
   
@@ -310,7 +307,7 @@ getData <- function(){
   
   trams_data <- handle_empty_response(trams_data, call1)
   buses_data <- handle_empty_response(buses_data, call2)
-  print(trams_data)
+  # print(trams_data)
   
   
   # print("### 4 ###")
@@ -336,7 +333,7 @@ getData <- function(){
   trams_data <- filter_outliers(trams_data)
   buses_data <- filter_outliers(buses_data)
   
-  trams_data$FirstLine <- as.character(as.numeric(trams_data$FirstLine))
+  trams_data$FirstLine <- as.character(as.numeric(trams_data$Lines))
   
   # setting a backup for the dropdown list
   backup_tram_data <- trams_data
@@ -474,7 +471,7 @@ server <- shinyServer(function(input, output, session) {
 
     if(is.null(input$tram_location_labels) == T & is.null(input$bus_location_labels) == T){
       
-      print("taking random tram and bus stop info")
+      # print("taking random tram and bus stop info")
       trams_data <- data$trams_data %>% dplyr::filter(FirstLine %in% random_tram_vehicle)
       buses_data <- data$buses_data %>% dplyr::filter(Lines %in% random_bus_vehicle)
       tram_label_list <- data$tram_label_list
@@ -528,12 +525,11 @@ server <- shinyServer(function(input, output, session) {
   
   
   tram_points <- reactive({
-    print(c("before printing tram points"))
-    print(reData())
+    # print(c("before printing tram points"))
+    # print(reData())
     # stop("stop")
-    print("#222")
     tram_points <- cbind(reData()[["trams_data"]]["Lon"], reData()[["trams_data"]]["Lat"])
-    print(tram_points)
+    # print(tram_points)
     return(tram_points)
   })
   
@@ -577,17 +573,17 @@ server <- shinyServer(function(input, output, session) {
     
     if(is.null(time_sample) == T){
       # do nothing
-      print("time sample is null")
+      # print("time sample is null")
     }
     else{
-      time1 <- as.POSIXct(time_sample, format = '%Y-%m-%dT%H:%M:%S')
+      time1 <- as.POSIXct(time_sample, format = '%Y-%m-%d %H:%M:%S')
       time2  <- as.POSIXct(Sys.time())
       if(is.null(time1) == T){print(c("time 1 is null, needs some debugging"))}
       
       timeDiff <- round(difftime(time2,time1, units="sec"),0)
       
       last_ref <- paste("Last update: ",
-                        strptime(time_sample, format='%Y-%m-%dT%H:%M:%S'),
+                        strptime(time_sample, format='%Y-%m-%d %H:%M:%S'),
                         " rerfeshed: ", timeDiff, " sec ago")
       
       return(last_ref)
@@ -669,14 +665,14 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(autoInvalidate(), {
     
     
-    print(c("enter observeEvent#1a"))
+    # print(c("enter observeEvent#1a"))
     tram_data <- tram_points()
-    print(c("tram_data are: ", tram_data))
+    # print(c("tram_data are: ", tram_data))
     tram_layer_id <- create_layer_id(tram_data$Lat, "tram")
-    print(c("after showing tram data for Lat"))
+    # print(c("after showing tram data for Lat"))
     
     
-    print(c("enter observeEvent#1b"))
+    # print(c("enter observeEvent#1b"))
     bus_data <- bus_points()
     bus_layer_id <- create_layer_id(bus_data$Lat, "bus")
     
@@ -717,7 +713,7 @@ server <- shinyServer(function(input, output, session) {
     
     null_clickid <- is.null(input$mymap_marker_click)
     choose_layer_id <- ifelse(null_clickid == T, "322901", input$mymap_marker_click$id)
-    print(c("choosen layer id is: ", choose_layer_id))
+    # print(c("choosen layer id is: ", choose_layer_id))
     
     if(boolean_value){
 
@@ -731,7 +727,7 @@ server <- shinyServer(function(input, output, session) {
 
     }else{
   
-      print(c("reactive_timetable - line_vector: ", c(input$bus_location_labels)))
+      # print(c("reactive_timetable - line_vector: ", c(input$bus_location_labels)))
       aligned_data <- aligned_bus_stops(c(input$bus_location_labels),
                                         choose_layer_id)
       
@@ -753,16 +749,16 @@ server <- shinyServer(function(input, output, session) {
   
   observeEvent(c(input$bus_location_labels, input$tram_location_labels), {
     
-    print(c("enter observeEvent#2"))
+    # print(c("enter observeEvent#2"))
     
     tram_data <- tram_points()
     tram_layer_id <- create_layer_id(tram_data$Lat, "tram")
-    print(c("after tram_layer_id creation"))
+    # print(c("after tram_layer_id creation"))
     
     bus_data <- bus_points()
 
     bus_layer_id <- create_layer_id(bus_data$Lat, "bus")
-    print(c("after bus_layer_id creation"))
+    # print(c("after bus_layer_id creation"))
     
     # remove necessary markers
     leafletProxy("mymap") %>%
